@@ -21,9 +21,14 @@ class AuthResponse(BaseModel):
 
 
 class ProfileCreate(BaseModel):
+    first_name: str
+    last_name: str
     email: str
-    password: str
     username: str
+    password: str
+    profile_picture: HttpUrl
+    phone_number: str
+    address: str
 
 
 class ListingCreate(BaseModel):
@@ -32,8 +37,12 @@ class ListingCreate(BaseModel):
     price: float = Field(..., gt=0)
     quantity: int = Field(..., gt=0)
     image_url: HttpUrl
-    location: str | None = Field(None, description="Pickup or delivery location details")
-    expires_on: Optional[date] = Field(None, description="Estimated expiry date if provided")
+    location: str | None = Field(
+        None, description="Pickup or delivery location details"
+    )
+    expires_on: Optional[date] = Field(
+        None, description="Estimated expiry date if provided"
+    )
 
 
 class Listing(ListingCreate):
@@ -43,7 +52,7 @@ class Listing(ListingCreate):
 
 
 class PurchaseRequest(BaseModel):
-    buyer_id: str
+    # buyer_id is now extracted from the authenticated user token
     quantity: int = Field(..., gt=0)
 
 
