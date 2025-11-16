@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import "./homepage.css";
 
 function toDateInput(value) {
@@ -22,9 +23,11 @@ function createEmptyForm() {
 }
 
 export default function Homepage() {
+  const router = useRouter();
+  const profileMenuRef = useRef(null);
   const [hasEntered, setHasEntered] = useState(false);
   const [activeTab, setActiveTab] = useState("my-groceries");
-  const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [isProfileMenuOpen, setProfileMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [items, setItems] = useState([]);
   const [itemsState, setItemsState] = useState({ loading: false, error: null });
@@ -46,6 +49,16 @@ export default function Homepage() {
   useEffect(() => {
     const timer = setTimeout(() => setHasEntered(true), 3000);
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (!profileMenuRef.current?.contains(event.target)) {
+        setProfileMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -112,6 +125,25 @@ export default function Homepage() {
   function handleNewItemChange(event) {
     const { name, value } = event.target;
     setNewItem((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function handleProfileToggle() {
+    setProfileMenuOpen((prev) => !prev);
+  }
+
+  function handleEditInfo() {
+    setProfileMenuOpen(false);
+    router.push("/account");
+  }
+
+  function handleSignOut() {
+    setProfileMenuOpen(false);
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("smf_user");
+      window.localStorage.removeItem("smf_session");
+    }
+    setUser(null);
+    router.push("/");
   }
 
   async function handleSaveItem(event) {
@@ -364,11 +396,36 @@ export default function Homepage() {
                         <span className="header-title">SaveMyFoods</span>
                     </div>
                     <div className="header-right">
-                        {user ? (
-                            <span className="header-username">Welcome, {user.username ?? user.email}</span>
-                        ) : (
-                            <span className="header-username">Welcome</span>
-                        )}
+                        <div className="profile-menu" ref={profileMenuRef}>
+                            <button
+                                type="button"
+                                className="profile-menu__trigger"
+                                onClick={handleProfileToggle}
+                                aria-expanded={isProfileMenuOpen}
+                            >
+                                {user ? `Welcome, ${user.username ?? user.email}` : "Account"}
+                                <span className="profile-menu__chevron">▾</span>
+                            </button>
+                            {isProfileMenuOpen && (
+                                <div className="profile-menu__dropdown">
+                                    <button
+                                        type="button"
+                                        className="profile-menu__item"
+                                        onClick={handleEditInfo}
+                                        disabled={!user}
+                                    >
+                                        Edit information
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="profile-menu__item profile-menu__item--danger"
+                                        onClick={handleSignOut}
+                                    >
+                                        Sign out
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </header>
 

@@ -43,10 +43,6 @@ export default function Home() {
     }
   }
 
-  function handleGuest() {
-    router.push("/homepage");
-  }
-
   function handleSignupClick(event) {
     event.preventDefault();
     router.push("/signup");
@@ -94,15 +90,6 @@ export default function Home() {
 
           <button type="submit" className="primary-button wide" disabled={status.loading}>
             {status.loading ? "Signing in…" : "Log in"}
-          </button>
-
-          <button
-            type="button"
-            className="secondary-button wide"
-            onClick={handleGuest}
-            disabled={status.loading}
-          >
-            Continue as guest
           </button>
 
           <p className="helper-text">

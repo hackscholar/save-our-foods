@@ -175,6 +175,82 @@
     color: #1f2933;
 }
 
+.header-right {
+    position: relative;
+}
+
+.profile-menu {
+    position: relative;
+}
+
+.profile-menu__trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #f3f4f6;
+    color: #1f2937;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    padding: 0.45rem 0.95rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.profile-menu__trigger:hover {
+    background: #e5e7eb;
+    border-color: #d1d5db;
+}
+
+.profile-menu__chevron {
+    font-size: 0.75rem;
+}
+
+.profile-menu__dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.4rem);
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+    width: 190px;
+    padding: 0.4rem;
+    z-index: 5;
+}
+
+.profile-menu__item {
+    width: 100%;
+    background: transparent;
+    border: none;
+    text-align: left;
+    padding: 0.55rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #111827;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.profile-menu__item:hover:not(:disabled) {
+    background: #f3f4f6;
+}
+
+.profile-menu__item:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.profile-menu__item--danger {
+    color: #b91c1c;
+}
+
+.profile-menu__item--danger:hover:not(:disabled) {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
 /* MAIN CONTENT LAYOUT */
 .homepage-content {
     margin-top: 0.5rem;

@@ -77,6 +77,40 @@ export function validateRegistrationInput({
   return issues;
 }
 
+export function validateProfileUpdateInput({
+  firstName,
+  lastName,
+  email,
+  phone,
+  password,
+}) {
+  const issues = {};
+
+  if (!firstName || firstName.trim().length < 2) {
+    issues.firstName = "First name must be at least 2 characters long.";
+  }
+
+  if (!lastName || lastName.trim().length < 2) {
+    issues.lastName = "Last name must be at least 2 characters long.";
+  }
+
+  if (!email || !EMAIL_REGEX.test(email.trim().toLowerCase())) {
+    issues.email = "A valid email address is required.";
+  }
+
+  const normalizedPhone = phone?.trim();
+  if (normalizedPhone && !PHONE_REGEX.test(normalizedPhone)) {
+    issues.phone =
+      "Phone number must use international E.164 format (e.g. +12065550123).";
+  }
+
+  if (password && password.length > 0 && password.length < 8) {
+    issues.password = "Password must be at least 8 characters long.";
+  }
+
+  return issues;
+}
+
 export function validateLoginInput({ email, password }) {
   const issues = {};
 
@@ -124,6 +158,57 @@ export async function createUser({
   }
 
   const { data, error } = await supabase.auth.admin.createUser(payload);
+
+  if (error) {
+    if (
+      error.status === 422 ||
+      error.message?.toLowerCase().includes("already registered")
+    ) {
+      const dup = new Error("Account already exists for this email");
+      dup.code = "ACCOUNT_EXISTS";
+      throw dup;
+    }
+    throw error;
+  }
+
+  return sanitizeUser(data.user);
+}
+
+export async function updateUserProfile(userId, {
+  firstName,
+  lastName,
+  email,
+  phone,
+  password,
+}) {
+  if (!userId) {
+    throw new Error("User ID is required to update profile.");
+  }
+  const supabase = getSupabaseServiceClient();
+  const normalizedEmail = email.trim().toLowerCase();
+  const trimmedFirst = firstName.trim();
+  const trimmedLast = lastName.trim();
+  const normalizedPhone = phone?.trim() ?? null;
+
+  const payload = {
+    email: normalizedEmail,
+    user_metadata: {
+      firstName: trimmedFirst,
+      lastName: trimmedLast,
+      name: `${trimmedFirst} ${trimmedLast}`.trim(),
+      phone: normalizedPhone,
+    },
+  };
+
+  if (normalizedPhone) {
+    payload.phone = normalizedPhone;
+  }
+
+  if (password && password.length >= 8) {
+    payload.password = password;
+  }
+
+  const { data, error } = await supabase.auth.admin.updateUserById(userId, payload);
 
   if (error) {
     if (
