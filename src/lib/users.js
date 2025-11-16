@@ -170,3 +170,43 @@ export async function verifyUserCredentials(email, password) {
     },
   };
 }
+
+export async function getUserById(userId) {
+  if (!userId) return null;
+  const supabase = getSupabaseServiceClient();
+  
+  const { data, error } = await supabase.auth.admin.getUserById(userId);
+  
+  if (error) {
+    if (error.status === 404 || error.message?.toLowerCase().includes("not found")) {
+      return null;
+    }
+    throw error;
+  }
+  
+  return sanitizeUser(data.user);
+}
+
+export async function getAllUsers(options = {}) {
+  const supabase = getSupabaseServiceClient();
+  const { page = 1, perPage = 1000 } = options;
+  
+  try {
+    const { data, error } = await supabase.auth.admin.listUsers({
+      page,
+      perPage,
+    });
+    
+    if (error) {
+      throw error;
+    }
+    
+    return {
+      users: (data?.users || []).map(user => sanitizeUser(user)),
+      total: data?.total ?? data?.users?.length ?? 0,
+    };
+  } catch (error) {
+    console.error("Error in getAllUsers:", error);
+    throw error;
+  }
+}

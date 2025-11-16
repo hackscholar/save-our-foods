@@ -121,6 +121,58 @@ When an `itemId` is supplied, the backend updates that row with any non-null AI 
 
 > ℹ️ When `itemId` is provided, the enrichment route also sends the stored `date_of_purchase` to Gemini so it can estimate an expiry date relative to when the item was bought.
 
+### Purchase/Buy Items
+
+When a buyer wants to purchase an item from a seller, the system automatically sends an email notification to the seller.
+
+Add the Resend environment variables:
+
+```
+RESEND_API_KEY=<your-resend-api-key>
+RESEND_FROM_EMAIL=<your-verified-email@yourdomain.com>
+```
+
+> ⚠️ You need to verify your sender email address in Resend before sending emails. For development, you can use `onboarding@resend.dev` as the default sender.
+
+- **Endpoint:** `POST /api/items/buy`
+- **Body:**
+  ```json
+  {
+    "itemId": "00000000-0000-0000-0000-000000000000",
+    "buyerId": "11111111-1111-1111-1111-111111111111"
+  }
+  ```
+- **Response:** `200` with:
+  ```json
+  {
+    "success": true,
+    "message": "Purchase request sent successfully. The seller has been notified.",
+    "item": {
+      "id": "...",
+      "name": "Cherry Tomatoes",
+      "price": 4.99,
+      "quantity": 3
+    },
+    "seller": {
+      "id": "...",
+      "name": "John Doe",
+      "email": "seller@example.com"
+    },
+    "buyer": {
+      "id": "...",
+      "name": "Jane Smith",
+      "email": "buyer@example.com"
+    }
+  }
+  ```
+
+The seller will receive an email notification containing:
+- Item details (name, price, quantity)
+- Buyer information (name, email)
+- Instructions to contact the buyer
+
+> ⚠️ Users cannot purchase their own items. The API will return an error if `buyerId` matches the item's `sellerId`.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
