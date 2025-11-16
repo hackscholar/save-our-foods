@@ -1,68 +1,36 @@
-# Save My Foods
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
-Backend-first scaffolding for a food-sharing marketplace that relies on Supabase for authentication, data storage, and media delivery.
+## Getting Started
 
-## Backend
-
-The backend is built with FastAPI and the official Supabase Python client. Core features include:
-
-- Email/password authentication via Supabase Auth (`/auth/register`, `/auth/login`).
-- CRUD-style listing APIs for marketplace items (`/listings`).
-- Purchase endpoint that expects a Supabase Postgres function `decrement_inventory` to manage stock.
-- Optional AI expiry estimation service that receives an image URL and returns an estimated expiry date.
-
-### Project layout
-
-```
-backend/
-├── app/
-│   ├── config.py          # Settings loaded from environment
-│   ├── dependencies.py    # Supabase client dependency wiring
-│   ├── main.py            # FastAPI app and router registration
-│   ├── routes/            # Auth, listings, purchases
-│   ├── schemas.py         # Pydantic request/response models
-│   └── services/vision.py # AI expiry estimation client
-├── requirements.txt       # Python dependencies
-├── Dockerfile             # Backend container image
-└── .env.example           # Sample configuration
-```
-
-### Environment variables
-
-Copy `.env.example` to `backend/.env` and provide your Supabase project details:
-
-- `SUPABASE_URL`: Supabase project URL
-- `SUPABASE_ANON_KEY`: Public anon key for client-side requests
-- `SUPABASE_SERVICE_ROLE_KEY`: Optional service role key for elevated database operations
-- `ALLOWED_ORIGINS`: JSON list of origins permitted by CORS (e.g., `["http://localhost:3000"]`)
-- `AI_EXPIRY_ENDPOINT`: Optional HTTP endpoint that accepts `{ "image_url": "..." }` and returns `{ "estimated_days": 3 }`
-- `AI_EXPIRY_API_KEY`: Optional bearer token for the AI endpoint
-
-### Supabase schema expectations
-
-Create the following tables in Supabase (schema can be adjusted as needed):
-
-- `profiles`: `id (uuid, pk)`, `email (text)`, `username (text)`
-- `listings`: `id (bigint, pk)`, `title (text)`, `description (text)`, `price (numeric)`, `quantity (int4)`, `image_url (text)`, `location (text)`, `expires_on (date)`, `seller_id (uuid)`, `created_at (timestamptz, default now())`
-- `purchases`: `id (bigint, pk)`, `listing_id (bigint, fk)`, `buyer_id (uuid)`, `quantity (int4)`, `purchased_at (timestamptz)`
-- Postgres function `decrement_inventory(listing_id_input bigint, quantity_input int)` to atomically reduce `listings.quantity`.
-
-### Running locally
+First, run the development server:
 
 ```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn backend.app.main:app --reload
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-### Docker
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-Build and run the backend with Docker Compose:
+You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
 
-```bash
-docker-compose up --build
-```
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-The API will be available at http://localhost:8000 and exposes Swagger docs at `/docs`.
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
