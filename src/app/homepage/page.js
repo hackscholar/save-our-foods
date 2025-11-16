@@ -424,9 +424,20 @@ export default function Homepage() {
   const marketplaceItems = marketItems;
   const canManageItem = (item) => item?.sellerId === user?.id;
   const isInCart = (id) => cartItems.some((item) => item.id === id);
+  const categoryShortcuts = [
+    { label: "All", icon: "✨", filter: null },
+    { label: "Produce", icon: "🥬", filter: "produce" },
+    { label: "Bakery", icon: "🥖", filter: "bakery" },
+    { label: "Meat & Seafood", icon: "🥩", filter: "meat" },
+    { label: "Dairy & Eggs", icon: "🥚", filter: "dairy" },
+    { label: "Pantry", icon: "🥫", filter: "pantry" },
+    { label: "Snacks", icon: "🍪", filter: "snacks" },
+    { label: "Frozen", icon: "🧊", filter: "frozen" },
+  ];
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
   return (
-        <main className="homepage-root">
+    <main className="homepage-root">
             {/* INTRO OVERLAY (transparent green → fade out) */}
             <div
                 className={`intro-overlay ${hasEntered ? "intro-overlay--fade-out" : ""
@@ -496,8 +507,29 @@ export default function Homepage() {
                     </div>
                 </header>
 
-                {/* Main layout: left column + tabs */}
-                <section className="homepage-content">
+            <section className="hero-banner">
+                <div className="hero-content">
+                    <p className="hero-eyebrow">Game on! Fall savings</p>
+                    <h1>Score 20% off curated platters & pantry staples</h1>
+                    <p>
+                        Inspired by Save-On-Foods, explore handcrafted bundles and reward-worthy groceries from neighbours near you.
+                    </p>
+                    <div className="hero-actions">
+                        <button type="button" onClick={() => setActiveTab("local-marketplace")}>
+                            Shop marketplace
+                        </button>
+                        <button type="button" className="hero-secondary" onClick={openNewItemModal}>
+                            List an item
+                        </button>
+                    </div>
+                </div>
+                <div className="hero-image">
+                    <Image src="/chatbot-hover.png" alt="Seasonal groceries" width={360} height={240} priority />
+                </div>
+            </section>
+
+            {/* Main layout: left column + tabs */}
+            <section className="homepage-content">
                     <div className="homepage-layout">
                         {/* LEFT COLUMN – My Selling List */}
                         <aside className="sidebar">
@@ -632,6 +664,19 @@ export default function Homepage() {
                                                 {itemsState.error}
                                             </p>
                                         )}
+                                        <div className="category-strip marketplace-filter">
+                                            {categoryShortcuts.map((category) => (
+                                                <button
+                                                    key={category.label}
+                                                    className={selectedCategory === category.filter ? "active" : ""}
+                                                    type="button"
+                                                    onClick={() => setSelectedCategory(category.filter)}
+                                                >
+                                                    <span>{category.icon}</span>
+                                                    <p>{category.label}</p>
+                                                </button>
+                                            ))}
+                                        </div>
                                         <div className="groceries-grid">
                                             {inventoryItems.map((item) => (
                                                 <article className="grocery-card" key={item.id}>
@@ -736,11 +781,36 @@ export default function Homepage() {
                                             Browse groceries your neighbours are
                                             selling or giving away near you.
                                         </p>
+                                        <div className="category-strip marketplace-filter">
+                                            {categoryShortcuts.map((category) => (
+                                                <button
+                                                    key={`market-${category.label}`}
+                                                    className={selectedCategory === category.filter ? "active" : ""}
+                                                    type="button"
+                                                    onClick={() => setSelectedCategory(category.filter)}
+                                                >
+                                                    <span>{category.icon}</span>
+                                                    <p>{category.label}</p>
+                                                </button>
+                                            ))}
+                                        </div>
                                         {marketState.error && (
                                             <p className="helper-text error">{marketState.error}</p>
                                         )}
                                         <div className="groceries-grid">
-                                            {marketplaceItems.map((item) => (
+                                            {marketplaceItems
+                                                .filter((item) => {
+                                                    if (!selectedCategory) return true;
+                                                    if (selectedCategory === "produce") return item.name?.toLowerCase().includes("tomato") || item.name?.toLowerCase().includes("banana") || item.name?.toLowerCase().includes("carrot");
+                                                    if (selectedCategory === "bakery") return item.name?.toLowerCase().includes("bread");
+                                                    if (selectedCategory === "meat") return item.name?.toLowerCase().includes("chicken");
+                                                    if (selectedCategory === "dairy") return item.name?.toLowerCase().includes("milk") || item.name?.toLowerCase().includes("cheese");
+                                                    if (selectedCategory === "pantry") return item.name?.toLowerCase().includes("rice");
+                                                    if (selectedCategory === "snacks") return item.name?.toLowerCase().includes("chips");
+                                                    if (selectedCategory === "frozen") return item.name?.toLowerCase().includes("frozen");
+                                                    return true;
+                                                })
+                                                .map((item) => (
                                                 <article className="grocery-card" key={`${item.id}-market`}>
                                                     {canManageItem(item) && (
                                                         <div className="grocery-card__overlay">
@@ -815,6 +885,7 @@ export default function Homepage() {
                             </div>
                         </div>
                     </div>
+
                 </section>
             </div>
             {isModalOpen && (

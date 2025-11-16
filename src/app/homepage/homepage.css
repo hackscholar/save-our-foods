@@ -569,11 +569,6 @@
     color: #14532d;
 }
 
-/* TAB PANEL */
-.tab-section {
-    max-width: 640px;
-}
-
 .tab-heading {
     font-size: 1.25rem;
     font-weight: 600;
