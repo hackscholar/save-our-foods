@@ -133,7 +133,7 @@ The homepage uses this to auto-suggest a marketplace price (with reasoning) when
 
 - **Endpoint:** `POST /api/cart/checkout`
 - **Body:** `{ "buyerId": "<uuid>", "items": [{ "name": "Tomatoes", "price": 3.5, "quantity": 2 }] }`
-- **Response:** `{ "success": true, "pdf": "<base64>", "fileName": "savemyfoods-receipt.pdf" }`
+- **Response:** `{ "success": true, "pdf": "<base64>", "fileName": "saveourfoods-receipt.pdf" }`
 
 The frontend converts the base64 PDF into a downloadable receipt so buyers can save/print their purchase summary.
 

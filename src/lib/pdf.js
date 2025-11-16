@@ -30,7 +30,7 @@ export async function generateCartInvoice({ buyerName, buyerEmail, items }) {
     return size;
   };
 
-  drawText("SaveMyFoods Purchase Summary", width / 2, {
+  drawText("SaveOurFoods Purchase Summary", width / 2, {
     size: 22,
     font: boldFont,
     align: "center",

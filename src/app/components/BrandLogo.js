@@ -9,7 +9,7 @@ export default function BrandLogo({ className = "" }) {
     <div className={classes}>
       <Image
         src="/headericon.PNG"
-        alt="SaveMyFoods logo"
+        alt="SaveOurFoods logo"
         width={350}
         height={150}
         className="logo"

@@ -251,7 +251,7 @@ Return strict JSON:
   "url": "https://recipe-link"
 }
 - Reply with only the recipe name and a publicly accessible recipe URL.
-- If no perfect recipe exists, choose the best match; if absolutely nothing fits, set url to "https://www.savemyfoods.com/pantry-tips".
+- If no perfect recipe exists, choose the best match; if absolutely nothing fits, set url to "https://www.saveourfoods.com/pantry-tips".
 `.trim();
 
   const response = await model.generateContent({
@@ -266,7 +266,7 @@ Return strict JSON:
   const parsed = parseModelResponse(response.response.text());
   return {
     title: parsed.title ?? "Pantry Inspiration",
-    url: parsed.url ?? "https://www.savemyfoods.com/pantry-tips",
+    url: parsed.url ?? "https://www.saveourfoods.com/pantry-tips",
     raw: parsed,
   };
 }

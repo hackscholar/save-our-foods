@@ -143,7 +143,7 @@ export async function sendCartInvoiceEmail({ buyerEmail, buyerName, items }) {
     .join("");
 
   const htmlContent = `
-    <h1 style="font-family: Arial, sans-serif;">Your SaveMyFoods Purchase</h1>
+    <h1 style="font-family: Arial, sans-serif;">Your SaveOurFoods Purchase</h1>
     <p>Hello ${buyerName || "there"},</p>
     <p>Here is a summary of your cart:</p>
     <table style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif;">
@@ -168,7 +168,7 @@ export async function sendCartInvoiceEmail({ buyerEmail, buyerName, items }) {
   `;
 
   const textContent = [
-    "Your SaveMyFoods Purchase",
+    "Your SaveOurFoods Purchase",
     "",
     ...items.map(
       (item) =>
@@ -186,7 +186,7 @@ export async function sendCartInvoiceEmail({ buyerEmail, buyerName, items }) {
   const { error } = await resendClient.emails.send({
     from: fromEmail,
     to: buyerEmail,
-    subject: "Your SaveMyFoods cart summary",
+    subject: "Your SaveOurFoods cart summary",
     html: htmlContent,
     text: textContent,
   });

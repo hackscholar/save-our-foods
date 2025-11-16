@@ -38,7 +38,7 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       pdf: pdfBuffer.toString("base64"),
-      fileName: "savemyfoods-receipt.pdf",
+      fileName: "saveourfoods-receipt.pdf",
     });
   } catch (error) {
     console.error("Failed to generate cart invoice", error);

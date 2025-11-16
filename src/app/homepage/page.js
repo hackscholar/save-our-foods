@@ -906,7 +906,7 @@ export default function Homepage() {
       if (data.pdf) {
         const link = document.createElement("a");
         link.href = `data:application/pdf;base64,${data.pdf}`;
-        link.download = data.fileName ?? `savemyfoods-receipt-${Date.now()}.pdf`;
+        link.download = data.fileName ?? `saveourfoods-receipt-${Date.now()}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -940,7 +940,7 @@ export default function Homepage() {
                     }`}
             >
                 <div className="intro-content">
-                    <h1 className="intro-title hover-grow">SaveMyFoods</h1>
+                    <h1 className="intro-title hover-grow">SaveOurFoods</h1>
 
                     <p className="intro-subtitle">
                         <span className="typewriter hover-grow">
@@ -975,12 +975,12 @@ export default function Homepage() {
                     <div className="header-left">
                         <Image
                             src="/icon.png"
-                            alt="SaveMyFoods logo"
+                            alt="SaveOurFoods logo"
                             width={50}
                             height={50}
                             className="header-logo"
                         />
-                        <span className="header-title">SaveMyFoods</span>
+                        <span className="header-title">SaveOurFoods</span>
                     </div>
                     <div className="header-right">
                         <div className="notification-center" ref={notificationsMenuRef}>
@@ -1642,11 +1642,11 @@ export default function Homepage() {
                     type="button"
                     className="chatbot-trigger"
                     onFocus={handleChatbotInteractionStart}
-                    aria-label="Open SaveMyFoods chatbot"
+                    aria-label="Open SaveOurFoods chatbot"
                 >
                     <Image
                         src={chatbotImageSrc}
-                        alt="SaveMyFoods chatbot"
+                        alt="SaveOurFoods chatbot"
                         width={140}
                         height={140}
                         className="chatbot-image"

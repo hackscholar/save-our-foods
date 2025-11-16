@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "SaveMyFoods",
+  title: "SaveOurFoods",
   description: "Grocery sharing marketplace",
 };
 
