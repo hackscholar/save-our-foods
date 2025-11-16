@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import "./homepage.css";
@@ -150,7 +150,7 @@ export default function Homepage() {
     }
   }, []);
 
-  async function fetchInventoryItems() {
+  const fetchInventoryItems = useCallback(async () => {
     if (!user?.id) return;
     setItemsState({ loading: true, error: null });
     try {
@@ -164,9 +164,9 @@ export default function Homepage() {
     } catch (error) {
       setItemsState({ loading: false, error: error.message });
     }
-  }
+  }, [user?.id]);
 
-  async function fetchMarketplaceItems() {
+  const fetchMarketplaceItems = useCallback(async () => {
     setMarketState({ loading: true, error: null });
     try {
       const response = await fetch("/api/items?type=marketplace");
@@ -179,16 +179,16 @@ export default function Homepage() {
     } catch (error) {
       setMarketState({ loading: false, error: error.message });
     }
-  }
+  }, []);
 
   useEffect(() => {
     if (!user?.id) return;
     fetchInventoryItems();
-  }, [user?.id]);
+  }, [user?.id, fetchInventoryItems]);
 
   useEffect(() => {
     fetchMarketplaceItems();
-  }, []);
+  }, [fetchMarketplaceItems]);
 
   function refreshItems() {
     if (user?.id) {
@@ -541,8 +541,6 @@ export default function Homepage() {
     }
   }
 
-  const inventoryItems = items.filter((item) => item.type !== "marketplace");
-  const marketplaceItems = marketItems;
   const canManageItem = (item) => item?.sellerId === user?.id;
   const isInCart = (id) => cartItems.some((item) => item.id === id);
 
