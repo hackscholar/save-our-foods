@@ -121,6 +121,14 @@ When an `itemId` is supplied, the backend updates that row with any non-null AI 
 
 > ℹ️ When `itemId` is provided, the enrichment route also sends the stored `date_of_purchase` to Gemini so it can estimate an expiry date relative to when the item was bought.
 
+### Price suggestion (Gemini)
+
+- **Endpoint:** `POST /api/items/price`
+- **Body:** `{ "name": "Cherry Tomatoes", "quantity": 3, "expiryDate": "2025-12-05", "dateOfPurchase": "2025-11-20" }`
+- **Response:** `{ "suggestion": { "price": 4.25, "explanation": "..." } }`
+
+The homepage uses this to auto-suggest a marketplace price (with reasoning) when you click “Sell”.
+
 ### Purchase/Buy Items
 
 When a buyer wants to purchase an item from a seller, the system automatically sends an email notification to the seller.

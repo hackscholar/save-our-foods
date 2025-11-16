@@ -4,12 +4,19 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import "./homepage.css";
 
+function toDateInput(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
 function createEmptyForm() {
   return {
     name: "",
     quantity: "",
     expiryDate: "",
-    dateOfPurchase: new Date().toISOString().slice(0, 10),
+    dateOfPurchase: toDateInput(new Date()),
     imagePath: "",
   };
 }
@@ -22,9 +29,18 @@ export default function Homepage() {
   const [itemsState, setItemsState] = useState({ loading: false, error: null });
   const [isModalOpen, setModalOpen] = useState(false);
   const [newItem, setNewItem] = useState(createEmptyForm());
+  const [editingItem, setEditingItem] = useState(null);
   const [createState, setCreateState] = useState({ loading: false, error: null });
   const [uploadState, setUploadState] = useState({ uploading: false, error: null });
   const [enrichState, setEnrichState] = useState({ loading: false, error: null });
+  const [sellDialog, setSellDialog] = useState({
+    open: false,
+    loading: false,
+    error: null,
+    suggestion: null,
+    item: null,
+    priceInput: "",
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => setHasEntered(true), 3000);
@@ -85,6 +101,7 @@ export default function Homepage() {
 
   function openNewItemModal() {
     setNewItem(createEmptyForm());
+    setEditingItem(null);
     setUploadState({ uploading: false, error: null });
     setEnrichState({ loading: false, error: null });
     setCreateState({ loading: false, error: null });
@@ -96,25 +113,38 @@ export default function Homepage() {
     setNewItem((prev) => ({ ...prev, [name]: value }));
   }
 
-  async function handleCreateItem(event) {
+  async function handleSaveItem(event) {
     event.preventDefault();
     if (!user?.id) return;
     setCreateState({ loading: true, error: null });
     try {
-      const payload = {
-        ...newItem,
-        sellerId: user.id,
+      const basePayload = {
+        name: newItem.name,
         quantity: newItem.quantity ? Number(newItem.quantity) : 0,
-        price: null,
-        type: "inventory",
         expiryDate: newItem.expiryDate || null,
         dateOfPurchase: newItem.dateOfPurchase || null,
         imagePath: newItem.imagePath || null,
       };
+
+      const requestInit =
+        editingItem && editingItem.id
+          ? {
+              method: "PATCH",
+              body: JSON.stringify({ ...basePayload, id: editingItem.id }),
+            }
+          : {
+              method: "POST",
+              body: JSON.stringify({
+                ...basePayload,
+                sellerId: user.id,
+                price: null,
+                type: "inventory",
+              }),
+            };
+
       const response = await fetch("/api/items", {
-        method: "POST",
+        ...requestInit,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -126,6 +156,7 @@ export default function Homepage() {
       }
       setCreateState({ loading: false, error: null });
       setNewItem(createEmptyForm());
+      setEditingItem(null);
       setModalOpen(false);
       refreshItems();
     } catch (error) {
@@ -188,7 +219,7 @@ export default function Homepage() {
         expiryDate: aiExpiry ? aiExpiry.slice(0, 10) : prev.expiryDate,
         quantity:
           parsedQuantity !== null && !Number.isNaN(parsedQuantity) && parsedQuantity > 0
-            ? parsedQuantity
+            ? String(parsedQuantity)
             : prev.quantity,
       }));
       setEnrichState({ loading: false, error: null });
@@ -198,7 +229,104 @@ export default function Homepage() {
     }
   }
 
-    return (
+  function handleEditItem(item) {
+    setEditingItem(item);
+    setNewItem({
+      name: item.name ?? "",
+      quantity: item.quantity !== null && item.quantity !== undefined ? String(item.quantity) : "",
+      expiryDate: toDateInput(item.expiryDate),
+      dateOfPurchase: toDateInput(item.dateOfPurchase) || toDateInput(new Date()),
+      imagePath: item.imagePath ?? "",
+    });
+    setUploadState({ uploading: false, error: null });
+    setEnrichState({ loading: false, error: null });
+    setCreateState({ loading: false, error: null });
+    setModalOpen(true);
+  }
+
+  async function handleSellItem(item) {
+    if (!item?.id) return;
+    setSellDialog({
+      open: true,
+      loading: true,
+      error: null,
+      suggestion: null,
+      item,
+      priceInput: "",
+    });
+    try {
+      const response = await fetch("/api/items/price", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: item.name,
+          quantity: item.quantity,
+          expiryDate: item.expiryDate,
+          dateOfPurchase: item.dateOfPurchase,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Unable to estimate price.");
+      }
+      setSellDialog({
+        open: true,
+        loading: false,
+        error: null,
+        suggestion: data.suggestion,
+        item,
+        priceInput:
+          data.suggestion?.price !== undefined && data.suggestion?.price !== null
+            ? String(data.suggestion.price)
+            : "",
+      });
+    } catch (error) {
+      setSellDialog({
+        open: true,
+        loading: false,
+        error: error.message,
+        suggestion: null,
+        item,
+        priceInput: "",
+      });
+    }
+  }
+
+  async function confirmSell() {
+    if (!sellDialog.item?.id || !sellDialog.priceInput) return;
+    setSellDialog((prev) => ({ ...prev, loading: true, error: null }));
+    try {
+      const response = await fetch("/api/items", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: sellDialog.item.id,
+          type: "marketplace",
+          price: Number(sellDialog.priceInput),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Unable to list item.");
+      }
+      setSellDialog({
+        open: false,
+        loading: false,
+        error: null,
+        suggestion: null,
+        item: null,
+        priceInput: "",
+      });
+      refreshItems();
+    } catch (error) {
+      setSellDialog((prev) => ({ ...prev, loading: false, error: error.message }));
+    }
+  }
+
+  const inventoryItems = items.filter((item) => item.type !== "marketplace");
+  const marketplaceItems = items.filter((item) => item.type === "marketplace");
+
+  return (
         <main className="homepage-root">
             {/* INTRO OVERLAY (transparent green → fade out) */}
             <div
@@ -321,32 +449,68 @@ export default function Homepage() {
                                             </p>
                                         )}
                                         <div className="groceries-grid">
-                                            {items.map((item) => (
+                                            {inventoryItems.map((item) => (
                                                 <article className="grocery-card" key={item.id}>
-                                                    <div className="grocery-card__header">
-                                                        <h3>{item.name}</h3>
+                                                    <div className="grocery-card__overlay">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                handleEditItem(item);
+                                                            }}
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        {item.type !== "marketplace" && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    handleSellItem(item);
+                                                                }}
+                                                            >
+                                                                Sell
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    <div className="grocery-card__image-wrap">
+                                                        {item.imagePath ? (
+                                                            <Image
+                                                                src={item.imagePath}
+                                                                alt={item.name}
+                                                                width={160}
+                                                                height={160}
+                                                                className="grocery-card__image"
+                                                            />
+                                                        ) : (
+                                                            <div className="grocery-card__image--placeholder">
+                                                                No image
+                                                            </div>
+                                                        )}
                                                         <span className="grocery-card__type">
                                                             {item.type}
                                                         </span>
                                                     </div>
-                                                    <dl className="grocery-card__meta">
-                                                        <div>
-                                                            <dt>Quantity</dt>
-                                                            <dd>{item.quantity ?? "0"}</dd>
-                                                        </div>
-                                                        <div>
-                                                            <dt>Expires</dt>
-                                                            <dd>{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : "—"}</dd>
-                                                        </div>
-                                                        <div>
-                                                            <dt>Price</dt>
-                                                            <dd>
-                                                                {item.price !== null && item.price !== undefined
-                                                                    ? `$${Number(item.price).toFixed(2)}`
-                                                                    : "—"}
-                                                            </dd>
-                                                        </div>
-                                                    </dl>
+                                                    <div className="grocery-card__body">
+                                                        <h3>{item.name}</h3>
+                                                        <p className="grocery-card__price">
+                                                            {item.price !== null && item.price !== undefined
+                                                                ? `$${Number(item.price).toFixed(2)}`
+                                                                : "—"}
+                                                        </p>
+                                                        <dl className="grocery-card__meta">
+                                                            <div>
+                                                                <dt>Quantity</dt>
+                                                                <dd>{item.quantity ?? "0"}</dd>
+                                                            </div>
+                                                            <div>
+                                                                <dt>Expires</dt>
+                                                                <dd>{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : "—"}</dd>
+                                                            </div>
+                                                        </dl>
+                                                    </div>
                                                 </article>
                                             ))}
                                             <button
@@ -359,7 +523,7 @@ export default function Homepage() {
                                                 <span>Add new item</span>
                                             </button>
                                         </div>
-                                        {items.length === 0 && !itemsState.loading && (
+                                        {inventoryItems.length === 0 && !itemsState.loading && (
                                             <p className="helper-text">
                                                 You have not added any groceries yet.
                                             </p>
@@ -376,7 +540,65 @@ export default function Homepage() {
                                             Browse groceries your neighbours are
                                             selling or giving away near you.
                                         </p>
-                                        {/* marketplace UI here later */}
+                                        <div className="groceries-grid">
+                                            {marketplaceItems.map((item) => (
+                                                <article className="grocery-card" key={`${item.id}-market`}>
+                                                    <div className="grocery-card__overlay">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                handleEditItem(item);
+                                                            }}
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                    </div>
+                                                    <div className="grocery-card__image-wrap">
+                                                        {item.imagePath ? (
+                                                            <Image
+                                                                src={item.imagePath}
+                                                                alt={item.name}
+                                                                width={160}
+                                                                height={160}
+                                                                className="grocery-card__image"
+                                                            />
+                                                        ) : (
+                                                            <div className="grocery-card__image--placeholder">
+                                                                No image
+                                                            </div>
+                                                        )}
+                                                        <span className="grocery-card__type">
+                                                            {item.type}
+                                                        </span>
+                                                    </div>
+                                                    <div className="grocery-card__body">
+                                                        <h3>{item.name}</h3>
+                                                        <p className="grocery-card__price">
+                                                            {item.price !== null && item.price !== undefined
+                                                                ? `$${Number(item.price).toFixed(2)}`
+                                                                : "—"}
+                                                        </p>
+                                                        <dl className="grocery-card__meta">
+                                                            <div>
+                                                                <dt>Quantity</dt>
+                                                                <dd>{item.quantity ?? "0"}</dd>
+                                                            </div>
+                                                            <div>
+                                                                <dt>Expires</dt>
+                                                                <dd>{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : "—"}</dd>
+                                                            </div>
+                                                        </dl>
+                                                    </div>
+                                                </article>
+                                            ))}
+                                        </div>
+                                        {marketplaceItems.length === 0 && !itemsState.loading && (
+                                            <p className="helper-text">
+                                                No marketplace items yet.
+                                            </p>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -388,17 +610,20 @@ export default function Homepage() {
                 <div className="modal-overlay" role="dialog" aria-modal="true">
                     <div className="modal">
                         <div className="modal-header">
-                            <h3>Add new item</h3>
+                            <h3>{editingItem ? "Edit item" : "Add new item"}</h3>
                             <button
                                 type="button"
                                 className="modal-close"
-                                onClick={() => setModalOpen(false)}
+                                onClick={() => {
+                                    setModalOpen(false);
+                                    setEditingItem(null);
+                                }}
                                 aria-label="Close"
                             >
                                 ×
                             </button>
                         </div>
-                        <form className="modal-form" onSubmit={handleCreateItem}>
+                        <form className="modal-form" onSubmit={handleSaveItem}>
                             <label className="field">
                                 <span>Food photo</span>
                                 <input
@@ -461,7 +686,10 @@ export default function Homepage() {
                                 <button
                                     type="button"
                                     className="secondary-button"
-                                    onClick={() => setModalOpen(false)}
+                                    onClick={() => {
+                                        setModalOpen(false);
+                                        setEditingItem(null);
+                                    }}
                                     disabled={createState.loading}
                                 >
                                     Cancel
@@ -475,6 +703,84 @@ export default function Homepage() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+            {sellDialog.open && (
+                <div className="modal-overlay" role="dialog" aria-modal="true">
+                    <div className="modal">
+                        <div className="modal-header">
+                            <h3>AI price suggestion</h3>
+                            <button
+                                type="button"
+                                className="modal-close"
+                                onClick={() =>
+                                    setSellDialog({
+                                        open: false,
+                                        loading: false,
+                                        error: null,
+                                        suggestion: null,
+                                        item: null,
+                                    })
+                                }
+                                aria-label="Close"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        {sellDialog.loading && <p>Calculating price…</p>}
+                        {sellDialog.error && <p className="helper-text error">{sellDialog.error}</p>}
+                        {sellDialog.suggestion && (
+                            <>
+                                <p className="sell-summary">
+                                    Suggested price:
+                                </p>
+                                <label className="field">
+                                    <span>Price (USD)</span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={sellDialog.priceInput}
+                                        onChange={(event) =>
+                                            setSellDialog((prev) => ({
+                                                ...prev,
+                                                priceInput: event.target.value,
+                                            }))
+                                        }
+                                        disabled={sellDialog.loading}
+                                    />
+                                </label>
+                                <p className="sell-explanation">{sellDialog.suggestion.explanation}</p>
+                            </>
+                        )}
+                        <div className="modal-actions">
+                                <button
+                                    type="button"
+                                    className="secondary-button"
+                                    onClick={() =>
+                                        setSellDialog({
+                                            open: false,
+                                            loading: false,
+                                            error: null,
+                                            suggestion: null,
+                                            item: null,
+                                            priceInput: "",
+                                        })
+                                    }
+                                    disabled={sellDialog.loading}
+                                >
+                                    Cancel
+                                </button>
+                            <button
+                                type="button"
+                                className="primary-button"
+                                onClick={confirmSell}
+                                disabled={sellDialog.loading || !sellDialog.suggestion}
+                            >
+                                {sellDialog.loading ? "Listing…" : "Done"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
