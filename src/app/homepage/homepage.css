@@ -173,7 +173,6 @@
 }
 
 .hero-content p {
-    max-width: 480px;
     color: #374151;
     margin-bottom: 0.85rem;
 }
@@ -786,6 +785,30 @@
     color: #4b5563;
 }
 
+.cart-add-button {
+    position: absolute;
+    left: 50%;
+    top: 42%;
+    transform: translate(-50%, -50%);
+    border: none;
+    border-radius: 999px;
+    padding: 0.45rem 1rem;
+    background: #ffffff;
+    color: #111827;
+    font-weight: 600;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2);
+    z-index: 3;
+}
+
+.cart-add-button:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    box-shadow: none;
+    cursor: not-allowed;
+}
 
 .grocery-card--add {
     border: 2px dashed #cbd5f5;

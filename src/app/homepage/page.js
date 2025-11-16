@@ -673,22 +673,11 @@ export default function Homepage() {
 
             <section className="hero-banner">
                 <div className="hero-content">
-                    <p className="hero-eyebrow">Game on! Fall savings</p>
-                    <h1>Score 20% off curated platters & pantry staples</h1>
+                    <p className="hero-eyebrow">Community marketplace</p>
+                    <h1>Share your pantry, discover local flavours</h1>
                     <p>
                         Inspired by Save-On-Foods, explore handcrafted bundles and reward-worthy groceries from neighbours near you.
                     </p>
-                    <div className="hero-actions">
-                        <button type="button" onClick={() => setActiveTab("local-marketplace")}>
-                            Shop marketplace
-                        </button>
-                        <button type="button" className="hero-secondary" onClick={openNewItemModal}>
-                            List an item
-                        </button>
-                    </div>
-                </div>
-                <div className="hero-image">
-                    <Image src="/chatbot-hover.png" alt="Seasonal groceries" width={360} height={240} priority />
                 </div>
             </section>
 
@@ -697,7 +686,7 @@ export default function Homepage() {
                     <div className="homepage-layout">
                         {/* LEFT COLUMN – My Selling List */}
                         <aside className="sidebar">
-                            <h3 className="sidebar-title">My selling list</h3>
+                            <h3 className="sidebar-title">My Selling List</h3>
                             <p className="sidebar-helper">
                                 Items you have listed on the marketplace.
                             </p>
@@ -797,7 +786,7 @@ export default function Homepage() {
                                     }`}
                                 onClick={() => setActiveTab("my-groceries")}
                             >
-                                My groceries
+                                My Groceries
                             </button>
 
                                 <button
@@ -807,7 +796,7 @@ export default function Homepage() {
                                         }`}
                                     onClick={() => setActiveTab("local-marketplace")}
                                 >
-                                    Local marketplace
+                                    Local Marketplace
                                 </button>
                             </div>
 
@@ -874,7 +863,12 @@ export default function Homepage() {
                                         </div>
                                         <div className="groceries-grid">
                                             {inventoryItems.map((item) => (
-                                                <article className="grocery-card" key={item.id}>
+                                                <article
+                                                    className={`grocery-card ${
+                                                        item.sellerId !== user?.id ? "is-other" : ""
+                                                    }`}
+                                                    key={item.id}
+                                                >
                                                     {canManageItem(item) ? (
                                                         <div className="grocery-card__overlay">
                                                             <button
@@ -981,7 +975,7 @@ export default function Homepage() {
                                 {activeTab === "local-marketplace" && (
                                     <div className="tab-section">
                                         <h2 className="tab-heading">
-                                            Local marketplace
+                                            Local Marketplace
                                         </h2>
                                         <p className="tab-text">
                                             Browse groceries your neighbours are
@@ -1051,7 +1045,10 @@ export default function Homepage() {
                                                     return true;
                                                 })
                                                 .map((item) => (
-                                                <article className="grocery-card" key={`${item.id}-market`}>
+                                                <article
+                                                    className={`grocery-card ${item.sellerId !== user?.id ? "is-other" : ""}`}
+                                                    key={`${item.id}-market`}
+                                                >
                                                     {canManageItem(item) ? (
                                                         <div className="grocery-card__overlay">
                                                             <button
