@@ -80,19 +80,32 @@ export async function createItem(payload) {
 
 export async function getItemById(itemId) {
   if (!itemId) return null;
+
   const supabase = getSupabaseServiceClient();
+
   const { data, error } = await supabase
-    .from(ITEMS_TABLE)
-    .select("*")
+    .from("items")
+    .select(`
+      *,
+      seller:users!items_seller_id_fkey (
+        id,
+        name,
+        email
+      )
+    `)
     .eq("id", itemId)
     .maybeSingle();
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
-  return data ? formatItem(data) : null;
+  if (!data) return null;
+
+  return {
+    ...formatItem(data),
+    seller: data.seller ?? null,   // <-- contains email, name, id
+  };
 }
+
 
 export async function updateItem(itemId, patch = {}) {
   const supabase = getSupabaseServiceClient();

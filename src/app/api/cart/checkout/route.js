@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUserById } from "@/lib/users";
 import { generateCartInvoice } from "@/lib/pdf";
+import { sendCartInvoiceEmail } from "@/lib/email";
 
 export async function POST(request) {
   let payload;
@@ -34,6 +35,16 @@ export async function POST(request) {
       buyerName,
       items,
     });
+
+    try {
+      await sendCartInvoiceEmail({
+        buyerEmail,
+        buyerName,
+        items,
+      });
+    } catch (emailError) {
+      console.error("Failed to send invoice email", emailError);
+    }
 
     return NextResponse.json({
       success: true,

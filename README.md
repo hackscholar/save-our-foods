@@ -139,16 +139,20 @@ The frontend converts the base64 PDF into a downloadable receipt so buyers can s
 
 ### Purchase/Buy Items
 
-When a buyer wants to purchase an item from a seller, the system automatically sends an email notification to the seller.
+When a buyer wants to purchase an item from a seller, the system automatically sends an email notification to the seller via SMTP (Gmail works great with an app password).
 
-Add the Resend environment variables:
+Add the SMTP environment variables:
 
 ```
-RESEND_API_KEY=<your-resend-api-key>
-RESEND_FROM_EMAIL=<your-verified-email@yourdomain.com>
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false          # set to true when using port 465
+SMTP_USER=yourapp@gmail.com
+SMTP_PASS=your_app_password   # never commit this!
+SMTP_FROM_EMAIL="SaveMyFoods <yourapp@gmail.com>"
 ```
 
-> ⚠️ You need to verify your sender email address in Resend before sending emails. For development, you can use `onboarding@resend.dev` as the default sender.
+> ⚠️ Gmail requires you to generate an App Password before SMTP will accept logins. The `Reply-To` header is set to the buyer's address, so when sellers press reply the message goes straight to the interested buyer.
 
 - **Endpoint:** `POST /api/items/buy`
 - **Body:**

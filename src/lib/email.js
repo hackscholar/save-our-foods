@@ -1,17 +1,83 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const globalForResend = globalThis;
+const globalForEmail = globalThis;
 
-function ensureResendClient() {
-  if (!globalForResend.__resendClient) {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      // Return null instead of throwing - we'll handle this in the send function
-      return null;
-    }
-    globalForResend.__resendClient = new Resend(apiKey);
+async function ensureSmtpTransporter() {
+  if (globalForEmail.__smtpTransporter) {
+    return globalForEmail.__smtpTransporter;
   }
-  return globalForResend.__resendClient;
+
+  const {
+    SMTP_HOST = "smtp.gmail.com",
+    SMTP_PORT = "587",
+    SMTP_SECURE,
+    SMTP_USER,
+    SMTP_PASS,
+  } = process.env;
+
+  // If no SMTP creds provided, create an Ethereal test account for local testing
+  if (!SMTP_USER || !SMTP_PASS) {
+    console.warn(
+      "SMTP_USER or SMTP_PASS not set — using Ethereal test account for local email testing.",
+    );
+    const testAccount = await nodemailer.createTestAccount();
+    globalForEmail.__smtpTransporter = nodemailer.createTransport({
+      host: "smtp.ethereal.email",
+      port: 587,
+      secure: false,
+      auth: {
+        user: testAccount.user,
+        pass: testAccount.pass,
+      },
+    });
+    globalForEmail.__etherealTestAccount = testAccount;
+    return globalForEmail.__smtpTransporter;
+  }
+
+  const port = Number(SMTP_PORT) || 587;
+  const secure =
+    typeof SMTP_SECURE === "string" ? SMTP_SECURE.toLowerCase() === "true" : port === 465;
+
+  globalForEmail.__smtpTransporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port,
+    secure,
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS,
+    },
+  });
+
+  return globalForEmail.__smtpTransporter;
+}
+
+async function sendEmail({ to, subject, html, text, replyTo }) {
+  const transporter = await ensureSmtpTransporter();
+
+  const fromAddress =
+    process.env.SMTP_FROM_EMAIL ||
+    (process.env.SMTP_USER ? `SaveMyFoods <${process.env.SMTP_USER}>` : "SaveMyFoods <no-reply@savemyfoods.local>");
+
+  try {
+    const response = await transporter.sendMail({
+      from: fromAddress,
+      to,
+      subject,
+      html,
+      text,
+      replyTo: replyTo || undefined,
+    });
+
+    const previewUrl = nodemailer.getTestMessageUrl(response);
+    if (previewUrl) {
+      console.info("Email preview URL (Ethereal):", previewUrl);
+    }
+
+    return { success: true, messageId: response?.messageId, previewUrl };
+  } catch (error) {
+    console.error("Error sending email via SMTP:", error);
+    throw error;
+  }
 }
 
 export async function sendPurchaseNotificationEmail({
@@ -23,10 +89,12 @@ export async function sendPurchaseNotificationEmail({
   itemPrice,
   itemQuantity,
 }) {
-  const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+  if (!sellerEmail) {
+    throw new Error("Seller email is required");
+  }
 
   const subject = `New Purchase Request: ${itemName}`;
-  
+
   const htmlContent = `
     <!DOCTYPE html>
     <html>
@@ -89,30 +157,13 @@ Best regards,
 Save My Foods Team
   `.trim();
 
-  const resendClient = ensureResendClient();
-  if (!resendClient) {
-    throw new Error("RESEND_API_KEY is not configured. Please set it in your environment variables.");
-  }
-
-  try {
-    const { data, error } = await resendClient.emails.send({
-      from: fromEmail,
-      to: sellerEmail,
-      subject,
-      html: htmlContent,
-      text: textContent,
-    });
-
-    if (error) {
-      console.error("Failed to send email:", error);
-      throw error;
-    }
-
-    return { success: true, messageId: data?.id };
-  } catch (error) {
-    console.error("Error sending purchase notification email:", error);
-    throw error;
-  }
+  return sendEmail({
+    to: sellerEmail,
+    subject,
+    html: htmlContent,
+    text: textContent,
+    replyTo: buyerEmail,
+  });
 }
 
 export async function sendCartInvoiceEmail({ buyerEmail, buyerName, items }) {
@@ -120,7 +171,6 @@ export async function sendCartInvoiceEmail({ buyerEmail, buyerName, items }) {
     throw new Error("Buyer email is required to send invoice.");
   }
 
-  const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
   const total = items.reduce(
     (sum, item) => sum + Number(item.price ?? 0) * Number(item.quantity ?? 1),
     0,
@@ -178,22 +228,11 @@ export async function sendCartInvoiceEmail({ buyerEmail, buyerName, items }) {
     `Total: $${total.toFixed(2)}`,
   ].join("\n");
 
-  const resendClient = ensureResendClient();
-  if (!resendClient) {
-    throw new Error("RESEND_API_KEY is not configured. Please set it in your environment variables.");
-  }
-
-  const { error } = await resendClient.emails.send({
-    from: fromEmail,
+  return sendEmail({
     to: buyerEmail,
     subject: "Your SaveMyFoods cart summary",
     html: htmlContent,
     text: textContent,
   });
-
-  if (error) {
-    throw error;
-  }
-
-  return { success: true };
 }
+

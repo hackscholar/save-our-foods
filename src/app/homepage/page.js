@@ -85,6 +85,7 @@ function applyFilters(items = [], filters) {
 export default function Homepage() {
   const router = useRouter();
   const profileMenuRef = useRef(null);
+  const sellerEmailCache = useRef({});
   const [hasEntered, setHasEntered] = useState(false);
   const [activeTab, setActiveTab] = useState("my-groceries");
   const [isProfileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -189,6 +190,29 @@ export default function Homepage() {
   useEffect(() => {
     fetchMarketplaceItems();
   }, []);
+
+  async function getSellerEmail(sellerId) {
+    if (!sellerId) {
+      return null;
+    }
+    if (sellerEmailCache.current[sellerId] !== undefined) {
+      return sellerEmailCache.current[sellerId];
+    }
+    try {
+      const response = await fetch(`/api/users/${sellerId}`);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Unable to load seller contact info.");
+      }
+      const email = data.user?.email ?? null;
+      sellerEmailCache.current[sellerId] = email;
+      return email;
+    } catch (error) {
+      console.error("Failed to fetch seller email", error);
+      sellerEmailCache.current[sellerId] = null;
+      return null;
+    }
+  }
 
   function refreshItems() {
     if (user?.id) {
@@ -500,12 +524,70 @@ export default function Homepage() {
     setCartItems((prev) => prev.filter((item) => item.id !== id));
   }
 
+  async function hydrateCartItemsWithSellerIds() {
+    const resolved = await Promise.all(
+      cartItems.map(async (item) => {
+        if (item.sellerId || !item.id) {
+          return item;
+        }
+        try {
+          const response = await fetch(`/api/items/${item.id}`);
+          const data = await response.json();
+          if (response.ok && data?.item?.sellerId) {
+            return { ...item, sellerId: data.item.sellerId };
+          }
+        } catch (error) {
+          console.error("Failed to fetch item while hydrating sellerId", error);
+        }
+        return item;
+      }),
+    );
+    const updatesNeeded = resolved.some((item, index) => item.sellerId !== cartItems[index]?.sellerId);
+    if (updatesNeeded) {
+      setCartItems(resolved);
+    }
+    return resolved;
+  }
+
   async function checkoutCart() {
     if (cartItems.length === 0 || !user?.email) {
       setCartState({ loading: false, error: "Cart is empty or missing buyer email.", success: null });
       return;
     }
     setCartState({ loading: true, error: null, success: null });
+    const hydratedCartItems = await hydrateCartItemsWithSellerIds();
+    const uniqueSellerIds = [
+      ...new Set(hydratedCartItems.map((item) => item.sellerId).filter(Boolean)),
+    ];
+    if (uniqueSellerIds.length > 0) {
+      try {
+        const sellerContacts = await Promise.all(
+          uniqueSellerIds.map(async (sellerId) => {
+            const email = await getSellerEmail(sellerId);
+            const sellerItems = hydratedCartItems
+              .filter((item) => item.sellerId === sellerId)
+              .map((item) => item.name)
+              .filter(Boolean);
+            return {
+              sellerId,
+              email,
+              items: sellerItems,
+            };
+          }),
+        );
+
+        if (typeof window !== "undefined") {
+          const lines = sellerContacts.map(({ email, items }) => {
+            const prefix = items.length > 0 ? `${items.join(", ")}: ` : "";
+            return `${prefix}${email ?? "Email unavailable"}`;
+          });
+          const messageLines = lines.length > 0 ? lines : ["Seller contact info unavailable."];
+          window.alert(`Seller contact info:\n${messageLines.join("\n")}`);
+        }
+      } catch (error) {
+        console.error("Unable to show seller contact info", error);
+      }
+    }
     try {
       const response = await fetch("/api/cart/checkout", {
         method: "POST",
@@ -514,7 +596,7 @@ export default function Homepage() {
           buyerId: user.id,
           buyerEmail: user.email,
           buyerName: user.name,
-          items: cartItems.map((item) => ({
+          items: hydratedCartItems.map((item) => ({
             id: item.id,
             name: item.name,
             price: item.price ?? 0,

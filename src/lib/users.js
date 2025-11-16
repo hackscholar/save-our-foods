@@ -6,6 +6,7 @@ import {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_REGEX = /^[a-zA-Z0-9_]+$/;
 const PHONE_REGEX = /^\+[1-9]\d{1,14}$/;
+const USERS_TABLE = "users";
 
 export function sanitizeUser(user) {
   if (!user) return null;
@@ -258,18 +259,21 @@ export async function verifyUserCredentials(email, password) {
 
 export async function getUserById(userId) {
   if (!userId) return null;
+
   const supabase = getSupabaseServiceClient();
-  
-  const { data, error } = await supabase.auth.admin.getUserById(userId);
-  
+
+  const { data, error } = await supabase
+    .from(USERS_TABLE)
+    .select("*")
+    .eq("id", userId)
+    .maybeSingle();
+
   if (error) {
-    if (error.status === 404 || error.message?.toLowerCase().includes("not found")) {
-      return null;
-    }
+    console.error("Supabase getUserById error:", error);
     throw error;
   }
-  
-  return sanitizeUser(data.user);
+
+  return data || null;
 }
 
 export async function getAllUsers(options = {}) {

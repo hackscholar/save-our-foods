@@ -36,11 +36,11 @@ export async function POST(request) {
     }
 
     // Get seller information
-    const seller = await getUserById(item.sellerId);
-    if (!seller) {
+    const seller = item.seller ?? null;
+    if (!seller?.email) {
       return NextResponse.json(
-        { error: "Seller not found." },
-        { status: 404 },
+          { error: "Seller email not available." },
+          { status: 400 }
       );
     }
 
