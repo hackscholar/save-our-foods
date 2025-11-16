@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import BrandLogo from "../components/BrandLogo";
 
 const initialForm = {
@@ -12,6 +13,7 @@ const initialForm = {
 };
 
 export default function AccountPage() {
+  const router = useRouter();
   const [user, setUser] = useState(null);
   const [form, setForm] = useState(initialForm);
   const [status, setStatus] = useState({ loading: false, error: null, success: null });
@@ -82,6 +84,7 @@ export default function AccountPage() {
       if (typeof window !== "undefined") {
         window.localStorage.setItem("smf_user", JSON.stringify(data.user));
       }
+      router.push("/homepage");
     } catch (error) {
       setStatus({ loading: false, error: error.message, success: null });
     }

@@ -53,6 +53,10 @@ body {
 
 .brand-lockup {
   margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
 }
 
 .brand-name {
@@ -82,7 +86,7 @@ body {
 }
 
 .brand-tagline {
-  margin: 0.4rem 0 0;
+  margin: 0 0 0;
   font-size: 0.9rem;
   opacity: 0.8;
   text-align: center;
@@ -204,8 +208,8 @@ body {
 }
 
 .logo {
-  margin-bottom: 0.8rem;
-  border-radius: 12px;
+  margin-bottom: 0;
+  border-radius: 5px;
 }
 
 .popup-overlay {
