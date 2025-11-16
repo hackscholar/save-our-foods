@@ -280,6 +280,29 @@
     position: relative;
 }
 
+.notification-indicator {
+    position: absolute;
+    top: -1.5rem;
+    right: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: #111827;
+    color: #ffffff;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.notification-indicator__icon {
+    font-size: 0.9rem;
+}
+
+.notification-indicator__count {
+    font-weight: 700;
+}
+
 .notification-button {
     display: inline-flex;
     align-items: center;
