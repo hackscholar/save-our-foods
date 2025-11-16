@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getItemById } from "@/lib/items";
 import { getUserById } from "@/lib/users";
 import { sendPurchaseNotificationEmail } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 
 export async function POST(request) {
   let payload;
@@ -68,6 +69,26 @@ export async function POST(request) {
       );
     }
 
+    let notificationRecord = null;
+
+    try {
+      notificationRecord = await createNotification({
+        userId: seller.id,
+        type: "purchase_request",
+        payload: {
+          itemId: item.id,
+          itemName: item.name,
+          itemPrice: item.price,
+          itemQuantity: item.quantity,
+          buyerId: buyer.id,
+          buyerName: buyer.name || buyer.firstName || "Buyer",
+          buyerEmail: buyer.email || null,
+        },
+      });
+    } catch (notificationError) {
+      console.error("Failed to log realtime notification:", notificationError);
+    }
+
     // Send email notification to seller
     try {
       await sendPurchaseNotificationEmail({
@@ -105,6 +126,7 @@ export async function POST(request) {
           name: buyer.name,
           email: buyer.email,
         },
+        notification: notificationRecord,
       },
       { status: 200 },
     );

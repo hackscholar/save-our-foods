@@ -189,6 +189,41 @@ The seller will receive an email notification containing:
 
 > ⚠️ Users cannot purchase their own items. The API will return an error if `buyerId` matches the item's `sellerId`.
 
+## Notifications & realtime alerts
+
+Sellers now see in-app alerts when buyers place offers or when items are close to expiring. Configure these environment variables so the browser client can connect to Supabase Realtime and any scheduled jobs can be secured:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=<your-project-url>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+CRON_SECRET=<shared-secret-for-cron-calls>   # optional but recommended
+EXPIRY_ALERT_WINDOW_HOURS=48                # optional override
+```
+
+- `POST /api/items/buy` creates a `purchase_request` notification in addition to the email.
+- `GET /api/notifications?userId=<uuid>` returns the newest notifications for that seller.
+- `PATCH /api/notifications` with `{ "userId": "..." }` marks all notifications as read.
+- `PATCH /api/notifications/<notification-id>` toggles a single notification's read state.
+
+### Expiring inventory checks
+
+`POST /api/notifications/expiring` scans the `items` table for rows with an `expiry_date` within the next `EXPIRY_ALERT_WINDOW_HOURS` and creates per-item `expiry_alert` notifications (skipping items that already have an alert). Protect this route by setting `CRON_SECRET` and including the same header in your scheduled job. For example, a Vercel Cron entry:
+
+```
+0 * * * * https://your-app.vercel.app/api/notifications/expiring
+```
+
+paired with:
+
+```
+curl -X POST https://your-app.vercel.app/api/notifications/expiring \
+  -H "x-cron-secret: $CRON_SECRET"
+```
+
+### Frontend realtime feed
+
+`src/app/homepage/page.js` subscribes to the `notifications` table via Supabase Realtime so a badge, dropdown, and toast show up as soon as a row is inserted. This complements the existing email notifications without requiring a browser refresh.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

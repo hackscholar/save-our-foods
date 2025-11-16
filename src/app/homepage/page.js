@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { createClient as createSupabaseBrowserClient } from "@/utils/supabase/client";
 import IngredientPopup from "../components/ingedientspopup";
 import "./homepage.css";
 
@@ -91,13 +92,46 @@ function applyFilters(items = [], filters) {
   return sortItems(filtered, filters.sort);
 }
 
+function formatNotification(record) {
+  if (!record) return null;
+  return {
+    id: record.id,
+    type: record.type,
+    payload: record.payload ?? {},
+    read: Boolean(record.read),
+    createdAt: record.createdAt ?? record.created_at ?? null,
+    readAt: record.readAt ?? record.read_at ?? null,
+  };
+}
+
+function describeNotification(notification) {
+  const payload = notification?.payload ?? {};
+  switch (notification?.type) {
+    case "purchase_request":
+      return `${payload.buyerName ?? "A buyer"} wants ${
+        payload.itemName ?? "one of your items"
+      }.`;
+    case "expiry_alert":
+      if (payload.itemName && payload.expiresInHours !== undefined) {
+        return `${payload.itemName} expires in ${
+          payload.expiresInHours
+        }h. Check it now.`;
+      }
+      return `An item is nearing expiry.`;
+    default:
+      return "You have a new notification.";
+  }
+}
+
 export default function Homepage() {
   const router = useRouter();
   const profileMenuRef = useRef(null);
+  const notificationsMenuRef = useRef(null);
   const chatbotTimerRef = useRef(null);
   const [hasEntered, setHasEntered] = useState(false);
   const [activeTab, setActiveTab] = useState("my-groceries");
   const [isProfileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [isNotificationsOpen, setNotificationsOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [items, setItems] = useState([]);
   const [itemsState, setItemsState] = useState({ loading: false, error: null });
@@ -132,6 +166,12 @@ export default function Homepage() {
   });
   const [cartItems, setCartItems] = useState([]);
   const [cartState, setCartState] = useState({ loading: false, error: null, success: null });
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsState, setNotificationsState] = useState({
+    loading: false,
+    error: null,
+  });
+  const [notificationToast, setNotificationToast] = useState(null);
   const [chatbotState, setChatbotState] = useState("idle");
   const [isIngredientPopupOpen, setIngredientPopupOpen] = useState(false);
 
@@ -149,6 +189,17 @@ export default function Homepage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!isNotificationsOpen) return undefined;
+    function handleClickOutside(event) {
+      if (!notificationsMenuRef.current?.contains(event.target)) {
+        setNotificationsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isNotificationsOpen]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -225,6 +276,79 @@ export default function Homepage() {
     }
     setChatbotState("idle");
   }, []);
+
+  async function fetchNotificationsList(limit = 50) {
+    if (!user?.id) return;
+    setNotificationsState({ loading: true, error: null });
+    try {
+      const response = await fetch(
+        `/api/notifications?userId=${user.id}&limit=${limit}`,
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Failed to load notifications.");
+      }
+      const next = Array.isArray(data.notifications)
+        ? data.notifications.map(formatNotification).filter(Boolean)
+        : [];
+      setNotifications(next);
+      setNotificationsState({ loading: false, error: null });
+    } catch (error) {
+      setNotificationsState({ loading: false, error: error.message });
+    }
+  }
+
+  function handleNotificationsToggle() {
+    if (!user) return;
+    setNotificationsOpen((prev) => !prev);
+    if (!notifications.length && !notificationsState.loading) {
+      fetchNotificationsList();
+    }
+  }
+
+  async function handleNotificationRead(notificationId) {
+    if (!notificationId) return;
+    setNotifications((prev) =>
+      prev.map((notification) =>
+        notification.id === notificationId
+          ? {
+              ...notification,
+              read: true,
+              readAt: notification.readAt ?? new Date().toISOString(),
+            }
+          : notification,
+      ),
+    );
+    try {
+      await fetch(`/api/notifications/${notificationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ read: true }),
+      });
+    } catch (error) {
+      console.error("Failed to mark notification as read", error);
+    }
+  }
+
+  async function handleMarkAllNotificationsRead() {
+    if (!user?.id) return;
+    setNotifications((prev) =>
+      prev.map((notification) => ({
+        ...notification,
+        read: true,
+        readAt: notification.readAt ?? new Date().toISOString(),
+      })),
+    );
+    try {
+      await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id }),
+      });
+    } catch (error) {
+      console.error("Failed to mark all notifications read", error);
+    }
+  }
 
   const handleChatbotYes = useCallback(() => {
     handleChatbotInteractionEnd();
@@ -322,6 +446,61 @@ export default function Homepage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setNotifications([]);
+      return;
+    }
+    fetchNotificationsList();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user) {
+      setNotificationsOpen(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    const supabase = createSupabaseBrowserClient();
+    const channel = supabase
+      .channel(`notifications:user:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          schema: "public",
+          table: "notifications",
+          event: "INSERT",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const formatted = formatNotification(payload.new);
+          if (!formatted) return;
+          setNotifications((prev) => {
+            const existing = prev.filter(
+              (notification) => notification.id !== formatted.id,
+            );
+            return [formatted, ...existing];
+          });
+          setNotificationToast({
+            id: formatted.id,
+            message: describeNotification(formatted),
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!notificationToast) return undefined;
+    const timer = setTimeout(() => setNotificationToast(null), 5000);
+    return () => clearTimeout(timer);
+  }, [notificationToast]);
 
   function openNewItemModal() {
     setNewItem(createEmptyForm());
@@ -613,6 +792,9 @@ export default function Homepage() {
     inventoryFilters,
   );
   const marketplaceItems = applyFilters(marketItems, marketFilters);
+  const unreadNotifications = notifications.filter(
+    (notification) => !notification.read,
+  ).length;
   function addToCart(item) {
     if (!item || item.sellerId === user?.id) return;
     setCartItems((prev) => {
@@ -707,6 +889,19 @@ export default function Homepage() {
 
             {/* REAL HOMEPAGE */}
             <div className="homepage-shell">
+                {notificationToast && (
+                    <div className="notification-toast" role="status">
+                        <span>{notificationToast.message}</span>
+                        <button
+                            type="button"
+                            className="notification-toast__dismiss"
+                            aria-label="Dismiss notification"
+                            onClick={() => setNotificationToast(null)}
+                        >
+                            X
+                        </button>
+                    </div>
+                )}
                 {/* Header */}
                 <header className="homepage-header">
                     <div className="header-left">
@@ -720,6 +915,87 @@ export default function Homepage() {
                         <span className="header-title">SaveMyFoods</span>
                     </div>
                     <div className="header-right">
+                        <div className="notification-center" ref={notificationsMenuRef}>
+                            <button
+                                type="button"
+                                className={`notification-button ${unreadNotifications > 0 ? "notification-button--active" : ""}`}
+                                onClick={handleNotificationsToggle}
+                                aria-expanded={isNotificationsOpen}
+                                aria-label="Open notifications"
+                                disabled={!user}
+                            >
+                                <span className="notification-button__icon" aria-hidden="true">
+                                    {"\u{1F514}"}
+                                </span>
+                                <span className="notification-button__label">Alerts</span>
+                                {unreadNotifications > 0 && (
+                                    <span className="notification-badge">
+                                        {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                                    </span>
+                                )}
+                            </button>
+                            {isNotificationsOpen && (
+                                <div className="notification-panel">
+                                    <div className="notification-panel__header">
+                                        <div>
+                                            <p className="notification-panel__title">Alerts</p>
+                                            <p className="notification-panel__subtitle">
+                                                Stay in sync with buyers and expiring stock.
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="notification-panel__mark-all"
+                                            onClick={handleMarkAllNotificationsRead}
+                                            disabled={unreadNotifications === 0}
+                                        >
+                                            Mark all read
+                                        </button>
+                                    </div>
+                                    {notificationsState.error && (
+                                        <p className="notification-error">{notificationsState.error}</p>
+                                    )}
+                                    <div className="notification-panel__body">
+                                        {notificationsState.loading ? (
+                                            <p className="notification-empty">Loading alerts...</p>
+                                        ) : notifications.length === 0 ? (
+                                            <p className="notification-empty">
+                                                You're all caught up.
+                                            </p>
+                                        ) : (
+                                            <ul className="notification-list">
+                                                {notifications.map((notification) => (
+                                                    <li
+                                                        key={notification.id}
+                                                        className={`notification-item ${notification.read ? "" : "notification-item--unread"}`}
+                                                    >
+                                                        <div className="notification-item__content">
+                                                            <p className="notification-item__title">
+                                                                {describeNotification(notification)}
+                                                            </p>
+                                                            <p className="notification-item__meta">
+                                                                {notification.createdAt
+                                                                    ? new Date(notification.createdAt).toLocaleString()
+                                                                    : ""}
+                                                            </p>
+                                                        </div>
+                                                        {!notification.read && (
+                                                            <button
+                                                                type="button"
+                                                                className="notification-item__action"
+                                                                onClick={() => handleNotificationRead(notification.id)}
+                                                            >
+                                                                Mark read
+                                                            </button>
+                                                        )}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                         <div className="profile-menu" ref={profileMenuRef}>
                             <button
                                 type="button"
