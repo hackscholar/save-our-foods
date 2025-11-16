@@ -20,6 +20,44 @@ You can start editing the page by modifying `app/page.js`. The page auto-updates
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Auth API (Supabase-backed)
+
+The API routes use Supabase as the persistence layer. Provide the following environment variables (for example inside `.env.local`):
+
+```
+SUPABASE_URL=<your-project-url>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+```
+
+> ⚠️ Use the **service role key** on the server only. Never expose it to the browser.
+
+Create a table named `app_users` (or adjust `USERS_TABLE` in `src/lib/users.js`) with at least:
+
+```sql
+create table public.app_users (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  email text unique not null,
+  password_hash text not null,
+  password_salt text not null,
+  created_at timestamptz not null default now()
+);
+```
+
+### Create account
+
+- **Endpoint:** `POST /api/auth/register`
+- **Body:** `{ "name": "Jane Doe", "email": "jane@example.com", "password": "supersecret" }`
+- **Response:** `201` with `{ "user": { "id": "...", "name": "...", "email": "...", "createdAt": "..." } }`
+
+### Login
+
+- **Endpoint:** `POST /api/auth/login`
+- **Body:** `{ "email": "jane@example.com", "password": "supersecret" }`
+- **Response:** `200` with `{ "user": { ... }, "sessionToken": "<uuid>" }`
+
+Passwords are hashed with `scrypt` and compared with `timingSafeEqual` before returning sanitized user data.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
