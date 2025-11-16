@@ -1593,11 +1593,6 @@ export default function Homepage() {
                                     <p className="chatbot-recipe-title">
                                         {chatbotRecipe.data.title ?? "Pantry inspiration"}
                                     </p>
-                                    {chatbotRecipe.data.note && (
-                                        <p className="chatbot-recipe-description">
-                                            {chatbotRecipe.data.note}
-                                        </p>
-                                    )}
                                     <a
                                         href={chatbotRecipe.data.url}
                                         target="_blank"

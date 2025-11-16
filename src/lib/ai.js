@@ -248,12 +248,10 @@ Extra notes: ${notes ?? "none"}.
 Return strict JSON:
 {
   "title": "string",
-  "note": "string|null",
   "url": "https://recipe-link"
 }
-- The URL must be a publicly accessible recipe page (blog or publisher).
-- If no perfect recipe exists, choose the best match and explain why in note.
-- If absolutely nothing fits, set url to "https://www.savemyfoods.com/pantry-tips" and explain the limitation.
+- Reply with only the recipe name and a publicly accessible recipe URL.
+- If no perfect recipe exists, choose the best match; if absolutely nothing fits, set url to "https://www.savemyfoods.com/pantry-tips".
 `.trim();
 
   const response = await model.generateContent({
@@ -268,7 +266,6 @@ Return strict JSON:
   const parsed = parseModelResponse(response.response.text());
   return {
     title: parsed.title ?? "Pantry Inspiration",
-    note: parsed.note ?? parsed.description ?? parsed.summary ?? null,
     url: parsed.url ?? "https://www.savemyfoods.com/pantry-tips",
     raw: parsed,
   };
