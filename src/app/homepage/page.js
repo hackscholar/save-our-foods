@@ -540,9 +540,7 @@ export default function Homepage() {
       setCartState({ loading: false, error: error.message, success: null });
     }
   }
-
-  const inventoryItems = items.filter((item) => item.type !== "marketplace");
-  const marketplaceItems = marketItems;
+  
   const canManageItem = (item) => item?.sellerId === user?.id;
   const isInCart = (id) => cartItems.some((item) => item.id === id);
 
