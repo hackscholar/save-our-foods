@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient as createSupabaseBrowserClient } from "@/utils/supabase/client";
-import { ITEM_CATEGORY_OPTIONS } from "@/lib/itemCategories";
 import { ITEM_CATEGORIES, getCategoryLabel } from "@/lib/item-categories";
 import IngredientPopup from "../components/ingedientspopup";
 import "./homepage.css";
@@ -17,10 +16,7 @@ const CHATBOT_IMAGES = {
 
 const CHATBOT_SPEAK_DELAY = 1500;
 const INITIAL_CHATBOT_RECIPE = { loading: false, data: null, error: null };
-const DEFAULT_ITEM_CATEGORY =
-  ITEM_CATEGORY_OPTIONS.find((option) => option.id === "other")?.id ??
-  ITEM_CATEGORY_OPTIONS[0]?.id ??
-  "";
+const DEFAULT_ITEM_CATEGORY = ITEM_CATEGORIES[0]?.value ?? "";
 const CATEGORY_SHORTCUTS = [
   { label: "All", value: null },
   ...ITEM_CATEGORIES.map(({ value, label }) => ({
@@ -213,7 +209,6 @@ export default function Homepage() {
   const [chatbotRecipe, setChatbotRecipe] = useState(INITIAL_CHATBOT_RECIPE);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const categoryShortcuts = CATEGORY_SHORTCUTS;
-  const [selectedCategory, setSelectedCategory] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setHasEntered(true), 3000);
@@ -1033,16 +1028,6 @@ export default function Homepage() {
       }),
     );
   }
-  const categoryShortcuts = [
-    { label: "All", filter: null },
-    { label: "Produce", filter: "produce" },
-    { label: "Bakery", filter: "bakery" },
-    { label: "Meat & Seafood", filter: "meat" },
-    { label: "Dairy & Eggs", filter: "dairy" },
-    { label: "Pantry", filter: "pantry" },
-    { label: "Snacks", filter: "snacks" },
-    { label: "Frozen", filter: "frozen" },
-  ];
   const chatbotImageSrc = CHATBOT_IMAGES[chatbotState] ?? CHATBOT_IMAGES.idle;
   function handleCategorySelect(value) {
     setSelectedCategory((prev) => (prev === value ? null : value));
@@ -1457,13 +1442,7 @@ export default function Homepage() {
                                                     key={category.value ?? "all"}
                                                     className={selectedCategory === category.value ? "active" : ""}
                                                     type="button"
-                                                    onClick={() =>
-                                                        category.filter === null
-                                                            ? setSelectedCategory(null)
-                                                            : setSelectedCategory((prev) =>
-                                                                  prev === category.filter ? null : category.filter,
-                                                              )
-                                                    }
+                                                    onClick={() => handleCategorySelect(category.value)}
                                                 >
                                                     <p>{category.label}</p>
                                                 </button>
@@ -1650,13 +1629,7 @@ export default function Homepage() {
                                                     key={`market-${category.value ?? "all"}`}
                                                     className={selectedCategory === category.value ? "active" : ""}
                                                     type="button"
-                                                    onClick={() =>
-                                                        category.filter === null
-                                                            ? setSelectedCategory(null)
-                                                            : setSelectedCategory((prev) =>
-                                                                  prev === category.filter ? null : category.filter,
-                                                              )
-                                                    }
+                                                    onClick={() => handleCategorySelect(category.value)}
                                                 >
                                                     <p>{category.label}</p>
                                                 </button>
@@ -1907,9 +1880,9 @@ export default function Homepage() {
                                     required
                                 >
                                     <option value="">Select a category</option>
-                                    {ITEM_CATEGORY_OPTIONS.map((option) => (
-                                        <option key={option.id} value={option.id}>
-                                            {option.label}
+                                    {ITEM_CATEGORIES.map((category) => (
+                                        <option key={category.value} value={category.value}>
+                                            {category.label}
                                         </option>
                                     ))}
                                 </select>
