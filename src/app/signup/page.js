@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import BrandLogo from "../components/BrandLogo";
 
 const initialForm = {
   firstName: "",
@@ -67,6 +68,7 @@ export default function SignupPage() {
               className="logo"
             />
           </div>
+          <BrandLogo />
           <p className="brand-tagline">
             Create an account to start sharing and claiming groceries.
           </p>

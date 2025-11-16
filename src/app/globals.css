@@ -192,3 +192,204 @@ body {
   margin-bottom: 0.8rem;
   border-radius: 12px;
 }
+
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 50;
+}
+
+.popup-box {
+  background: white;
+  padding: 1.8rem;
+  width: 90%;
+  max-width: 400px;
+  border-radius: 16px;
+  border: 2px solid var(--accent);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+  animation: popIn 0.2s ease-out;
+}
+
+.popup-box h2 {
+  margin-top: 0;
+  color: var(--accent);
+  text-align: center;
+  font-size: 1.2rem;
+}
+
+.popup-close {
+  margin-top: 1.4rem;
+  width: 100%;
+  padding: 0.7rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.popup-close:hover {
+  opacity: 0.9;
+}
+
+.popup-content {
+  padding-top: 0.5rem;
+  text-align: center;
+}
+
+@keyframes popIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0.2;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Top Right Close X Button */
+.popup-x {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  font-size: 1.4rem;
+  font-weight: bold;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-main);
+}
+
+.popup-x:hover {
+  color: var(--accent);
+}
+
+/* Upload button styled like old close button */
+.upload-button-full {
+  margin-top: 1.4rem;
+  width: 100%;
+  padding: 0.8rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: 0.2s;
+}
+
+.upload-button-full:hover {
+  opacity: 0.9;
+}
+
+.popup-box {
+  position: relative;
+  padding-top: 2.2rem; /* add spacing for the X */
+}
+.popup-box {
+  position: relative;
+  background: #ffffff;
+  padding: 2.2rem 1.8rem 1.8rem;
+  width: 90%;
+  max-width: 420px;
+  border-radius: 16px;
+  border: 2px solid var(--accent);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  animation: popIn 0.2s ease-out;
+}
+
+/* X close button */
+.popup-x {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  font-size: 1.4rem;
+  font-weight: bold;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-main);
+}
+
+.popup-x:hover {
+  color: var(--accent);
+}
+
+.popup-content {
+  margin-top: 0.75rem;
+  text-align: center;
+}
+
+/* Ingredients centered nicely */
+.ingredients-list {
+  margin-top: 1rem;
+  margin-bottom: 0.8rem;
+  text-align: center;
+}
+
+.ingredients-title {
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  opacity: 0.85;
+}
+
+.ingredient-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.4rem;
+}
+
+.ingredient-label {
+  min-width: 120px;
+  text-align: right;
+  font-size: 0.9rem;
+}
+
+.ingredient-input {
+  width: 70px;
+  padding: 0.3rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  background: #fbf8f1;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.ingredient-input:focus {
+  outline: 2px solid var(--accent-soft);
+  border-color: var(--accent);
+  background: #ffffff;
+}
+
+/* Popup action buttons */
+.popup-button {
+  width: 100%;
+  padding: 0.8rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: 0.2s;
+}
+
+.popup-button:hover {
+  opacity: 0.9;
+}
+
+.upload-button-full {
+  margin-top: 1rem;
+}
+
+.confirm-button-full {
+  margin-top: 0.6rem;
+}
