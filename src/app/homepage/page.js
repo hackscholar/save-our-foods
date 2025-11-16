@@ -12,6 +12,51 @@ function toDateInput(value) {
   return date.toISOString().slice(0, 10);
 }
 
+const SORTERS = {
+  expiry: (a, b) => {
+    const dateA = a?.expiryDate ? new Date(a.expiryDate).getTime() : Infinity;
+    const dateB = b?.expiryDate ? new Date(b.expiryDate).getTime() : Infinity;
+    return dateA - dateB;
+  },
+  expiryLatest: (a, b) => {
+    const dateA = a?.expiryDate ? new Date(a.expiryDate).getTime() : -Infinity;
+    const dateB = b?.expiryDate ? new Date(b.expiryDate).getTime() : -Infinity;
+    return dateB - dateA;
+  },
+  quantity: (a, b) => {
+    const qtyA = a?.quantity ?? Infinity;
+    const qtyB = b?.quantity ?? Infinity;
+    return qtyA - qtyB;
+  },
+  quantityHigh: (a, b) => {
+    const qtyA = a?.quantity ?? -Infinity;
+    const qtyB = b?.quantity ?? -Infinity;
+    return qtyB - qtyA;
+  },
+  priceLow: (a, b) => {
+    const priceA =
+      a?.price !== null && a?.price !== undefined
+        ? Number(a.price)
+        : Infinity;
+    const priceB =
+      b?.price !== null && b?.price !== undefined
+        ? Number(b.price)
+        : Infinity;
+    return priceA - priceB;
+  },
+  priceHigh: (a, b) => {
+    const priceA =
+      a?.price !== null && a?.price !== undefined
+        ? Number(a.price)
+        : -Infinity;
+    const priceB =
+      b?.price !== null && b?.price !== undefined
+        ? Number(b.price)
+        : -Infinity;
+    return priceB - priceA;
+  },
+};
+
 function createEmptyForm() {
   return {
     name: "",
@@ -20,6 +65,21 @@ function createEmptyForm() {
     dateOfPurchase: toDateInput(new Date()),
     imagePath: "",
   };
+}
+
+function sortItems(items = [], sortKey = "expiry") {
+  const sorter = SORTERS[sortKey] ?? SORTERS.expiry;
+  return [...items].sort(sorter);
+}
+
+function applyFilters(items = [], filters) {
+  const query = filters.search.trim().toLowerCase();
+  const filtered = query
+    ? items.filter((item) =>
+        (item.name ?? "").toLowerCase().includes(query),
+      )
+    : items;
+  return sortItems(filtered, filters.sort);
 }
 
 export default function Homepage() {
@@ -37,7 +97,12 @@ export default function Homepage() {
   const [newItem, setNewItem] = useState(createEmptyForm());
   const [editingItem, setEditingItem] = useState(null);
   const [createState, setCreateState] = useState({ loading: false, error: null });
-  const [uploadState, setUploadState] = useState({ uploading: false, error: null });
+  const [deleteState, setDeleteState] = useState({ loading: false, error: null });
+  const [unlistState, setUnlistState] = useState({ loadingId: null, error: null });
+  const [uploadState, setUploadState] = useState({
+    uploading: false,
+    error: null,
+  });
   const [enrichState, setEnrichState] = useState({ loading: false, error: null });
   const [sellDialog, setSellDialog] = useState({
     open: false,
@@ -46,6 +111,14 @@ export default function Homepage() {
     suggestion: null,
     item: null,
     priceInput: "",
+  });
+  const [inventoryFilters, setInventoryFilters] = useState({
+    search: "",
+    sort: "expiry",
+  });
+  const [marketFilters, setMarketFilters] = useState({
+    search: "",
+    sort: "expiry",
   });
   const [cartItems, setCartItems] = useState([]);
   const [cartState, setCartState] = useState({ loading: false, error: null, success: null });
@@ -130,6 +203,7 @@ export default function Homepage() {
     setUploadState({ uploading: false, error: null });
     setEnrichState({ loading: false, error: null });
     setCreateState({ loading: false, error: null });
+    setDeleteState({ loading: false, error: null });
     setModalOpen(true);
   }
 
@@ -205,6 +279,48 @@ export default function Homepage() {
       refreshItems();
     } catch (error) {
       setCreateState({ loading: false, error: error.message });
+    }
+  }
+
+  async function handleDeleteItem() {
+    if (!editingItem?.id) return;
+    setDeleteState({ loading: true, error: null });
+    try {
+      const response = await fetch("/api/items", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingItem.id }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Unable to delete item.");
+      }
+      setDeleteState({ loading: false, error: null });
+      setModalOpen(false);
+      setEditingItem(null);
+      refreshItems();
+    } catch (error) {
+      setDeleteState({ loading: false, error: error.message });
+    }
+  }
+
+  async function handleUnlistItem(item) {
+    if (!item?.id) return;
+    setUnlistState({ loadingId: item.id, error: null });
+    try {
+      const response = await fetch("/api/items", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: item.id, type: "inventory", price: null }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Unable to unlist item.");
+      }
+      setUnlistState({ loadingId: null, error: null });
+      refreshItems();
+    } catch (error) {
+      setUnlistState({ loadingId: null, error: error.message });
     }
   }
   async function handleImageUpload(event) {
@@ -366,6 +482,11 @@ export default function Homepage() {
     }
   }
 
+  const inventoryItems = applyFilters(
+    items.filter((item) => item.type !== "marketplace"),
+    inventoryFilters,
+  );
+  const marketplaceItems = applyFilters(marketItems, marketFilters);
   function addToCart(item) {
     if (!item || item.sellerId === user?.id) return;
     setCartItems((prev) => {
@@ -419,9 +540,7 @@ export default function Homepage() {
       setCartState({ loading: false, error: error.message, success: null });
     }
   }
-
-  const inventoryItems = items.filter((item) => item.type !== "marketplace");
-  const marketplaceItems = marketItems;
+  
   const canManageItem = (item) => item?.sellerId === user?.id;
   const isInCart = (id) => cartItems.some((item) => item.id === id);
   const categoryShortcuts = [
@@ -659,6 +778,37 @@ export default function Homepage() {
                                             expiring soon, and decide what to
                                             share or sell.
                                         </p>
+                                        <div className="filter-bar">
+                                            <input
+                                                type="search"
+                                                className="filter-input"
+                                                placeholder="Search by item name..."
+                                                value={inventoryFilters.search}
+                                                onChange={(event) =>
+                                                    setInventoryFilters((prev) => ({
+                                                        ...prev,
+                                                        search: event.target.value,
+                                                    }))
+                                                }
+                                            />
+                                            <select
+                                                className="filter-select"
+                                                value={inventoryFilters.sort}
+                                                onChange={(event) =>
+                                                    setInventoryFilters((prev) => ({
+                                                        ...prev,
+                                                        sort: event.target.value,
+                                                    }))
+                                                }
+                                            >
+                                                <option value="expiry">Expiry (soonest first)</option>
+                                                <option value="expiryLatest">Expiry (latest first)</option>
+                                                <option value="quantity">Quantity (low → high)</option>
+                                                <option value="quantityHigh">Quantity (high → low)</option>
+                                                <option value="priceLow">Price (low → high)</option>
+                                                <option value="priceHigh">Price (high → low)</option>
+                                            </select>
+                                        </div>
                                         {itemsState.error && (
                                             <p className="helper-text error">
                                                 {itemsState.error}
@@ -684,6 +834,7 @@ export default function Homepage() {
                                                         <div className="grocery-card__overlay">
                                                             <button
                                                                 type="button"
+                                                                className="grocery-card__overlay-button"
                                                                 onClick={(e) => {
                                                                     e.preventDefault();
                                                                     e.stopPropagation();
@@ -695,6 +846,7 @@ export default function Homepage() {
                                                             {item.type !== "marketplace" && (
                                                                 <button
                                                                     type="button"
+                                                                    className="grocery-card__overlay-button"
                                                                     onClick={(e) => {
                                                                         e.preventDefault();
                                                                         e.stopPropagation();
@@ -781,6 +933,37 @@ export default function Homepage() {
                                             Browse groceries your neighbours are
                                             selling or giving away near you.
                                         </p>
+                                        <div className="filter-bar">
+                                            <input
+                                                type="search"
+                                                className="filter-input"
+                                                placeholder="Search by item name..."
+                                                value={marketFilters.search}
+                                                onChange={(event) =>
+                                                    setMarketFilters((prev) => ({
+                                                        ...prev,
+                                                        search: event.target.value,
+                                                    }))
+                                                }
+                                            />
+                                            <select
+                                                className="filter-select"
+                                                value={marketFilters.sort}
+                                                onChange={(event) =>
+                                                    setMarketFilters((prev) => ({
+                                                        ...prev,
+                                                        sort: event.target.value,
+                                                    }))
+                                                }
+                                            >
+                                                <option value="expiry">Expiry (soonest first)</option>
+                                                <option value="expiryLatest">Expiry (latest first)</option>
+                                                <option value="quantity">Quantity (low → high)</option>
+                                                <option value="quantityHigh">Quantity (high → low)</option>
+                                                <option value="priceLow">Price (low → high)</option>
+                                                <option value="priceHigh">Price (high → low)</option>
+                                            </select>
+                                        </div>
                                         <div className="category-strip marketplace-filter">
                                             {categoryShortcuts.map((category) => (
                                                 <button
@@ -796,6 +979,9 @@ export default function Homepage() {
                                         </div>
                                         {marketState.error && (
                                             <p className="helper-text error">{marketState.error}</p>
+                                        )}
+                                        {unlistState.error && (
+                                            <p className="helper-text error">{unlistState.error}</p>
                                         )}
                                         <div className="groceries-grid">
                                             {marketplaceItems
@@ -816,6 +1002,7 @@ export default function Homepage() {
                                                         <div className="grocery-card__overlay">
                                                             <button
                                                                 type="button"
+                                                                className="grocery-card__overlay-button"
                                                                 onClick={(e) => {
                                                                     e.preventDefault();
                                                                     e.stopPropagation();
@@ -824,7 +1011,21 @@ export default function Homepage() {
                                                             >
                                                                 Edit
                                                             </button>
-                                                        </div>
+                                                            <button
+                                                                type="button"
+                                                                className="grocery-card__overlay-button grocery-card__overlay-button--danger"
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    handleUnlistItem(item);
+                                                                }}
+                                                                disabled={unlistState.loadingId === item.id}
+                                                            >
+                                                                {unlistState.loadingId === item.id
+                                                                    ? "Unlisting…"
+                                                                    : "Unlist"}
+                                                            </button>
+                                                    </div>
                                                     )}
                                                     <div className="grocery-card__image-wrap">
                                                         {item.imagePath ? (
@@ -964,6 +1165,9 @@ export default function Homepage() {
                             {createState.error && (
                                 <p className="helper-text error">{createState.error}</p>
                             )}
+                            {deleteState.error && (
+                                <p className="helper-text error">{deleteState.error}</p>
+                            )}
                             <div className="modal-actions">
                                 <button
                                     type="button"
@@ -972,17 +1176,27 @@ export default function Homepage() {
                                         setModalOpen(false);
                                         setEditingItem(null);
                                     }}
-                                    disabled={createState.loading}
+                                    disabled={createState.loading || deleteState.loading}
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     className="primary-button"
-                                    disabled={createState.loading}
+                                    disabled={createState.loading || deleteState.loading}
                                 >
                                     {createState.loading ? "Saving…" : "Save"}
                                 </button>
+                                {editingItem && (
+                                    <button
+                                        type="button"
+                                        className="danger-button"
+                                        onClick={handleDeleteItem}
+                                        disabled={deleteState.loading || createState.loading}
+                                    >
+                                        {deleteState.loading ? "Deleting…" : "Delete"}
+                                    </button>
+                                )}
                             </div>
                         </form>
                     </div>
