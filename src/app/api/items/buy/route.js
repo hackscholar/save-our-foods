@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getItemById } from "@/lib/items";
 import { getUserById } from "@/lib/users";
-import { sendPurchaseNotificationEmail } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
 
 export async function POST(request) {
@@ -45,13 +44,6 @@ export async function POST(request) {
       );
     }
 
-    if (!seller.email) {
-      return NextResponse.json(
-        { error: "Seller email not available." },
-        { status: 400 },
-      );
-    }
-
     // Get buyer information
     const buyer = await getUserById(buyerId);
     if (!buyer) {
@@ -87,29 +79,16 @@ export async function POST(request) {
       });
     } catch (notificationError) {
       console.error("Failed to log realtime notification:", notificationError);
-    }
-
-    // Send email notification to seller
-    try {
-      await sendPurchaseNotificationEmail({
-        sellerEmail: seller.email,
-        sellerName: seller.name || seller.firstName || "Seller",
-        buyerName: buyer.name || buyer.firstName || "Buyer",
-        buyerEmail: buyer.email || null,
-        itemName: item.name,
-        itemPrice: item.price,
-        itemQuantity: item.quantity,
-      });
-    } catch (emailError) {
-      console.error("Failed to send email notification:", emailError);
-      // Continue even if email fails - we still want to return success
-      // but log the error for debugging
+      return NextResponse.json(
+        { error: "Unable to record purchase notification." },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json(
       {
         success: true,
-        message: "Purchase request sent successfully. The seller has been notified.",
+        message: "Purchase request sent successfully. The seller will see it in their alerts.",
         item: {
           id: item.id,
           name: item.name,
