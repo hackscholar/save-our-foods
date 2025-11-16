@@ -1,18 +1,32 @@
 import { NextResponse } from "next/server";
-import { createItem, validateItemInput, listItemsBySeller, updateItem } from "@/lib/items";
+import {
+  createItem,
+  validateItemInput,
+  listItemsBySeller,
+  listItemsByType,
+  updateItem,
+} from "@/lib/items";
 
 export async function GET(request) {
-  const sellerId = request.nextUrl.searchParams.get("sellerId");
-  if (!sellerId) {
-    return NextResponse.json(
-      { error: "sellerId query parameter is required." },
-      { status: 400 },
-    );
-  }
+  const url = request.nextUrl;
+  const sellerId = url.searchParams.get("sellerId");
+  const type = url.searchParams.get("type");
 
   try {
-    const items = await listItemsBySeller(sellerId);
-    return NextResponse.json({ items });
+    if (sellerId) {
+      const items = await listItemsBySeller(sellerId, type ?? null);
+      return NextResponse.json({ items });
+    }
+
+    if (type) {
+      const items = await listItemsByType(type);
+      return NextResponse.json({ items });
+    }
+
+    return NextResponse.json(
+      { error: "Provide sellerId or type query parameter." },
+      { status: 400 },
+    );
   } catch (error) {
     console.error("Failed to load items", error);
     return NextResponse.json(

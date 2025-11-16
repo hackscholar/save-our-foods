@@ -124,17 +124,33 @@ export async function updateItem(itemId, patch = {}) {
   return formatItem(data);
 }
 
-export async function listItemsBySeller(sellerId) {
+export async function listItemsBySeller(sellerId, type = null) {
   const supabase = getSupabaseServiceClient();
-  const { data, error } = await supabase
-    .from(ITEMS_TABLE)
-    .select("*")
-    .eq("seller_id", sellerId);
+  let query = supabase.from(ITEMS_TABLE).select("*").eq("seller_id", sellerId);
+  if (type) {
+    query = query.eq("type", type);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw error;
   }
 
+  return (data ?? []).map(formatItem);
+}
+
+export async function listItemsByType(type) {
+  const supabase = getSupabaseServiceClient();
+  let query = supabase.from(ITEMS_TABLE).select("*");
+  if (type) {
+    query = query.eq("type", type);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    throw error;
+  }
   return (data ?? []).map(formatItem);
 }
 

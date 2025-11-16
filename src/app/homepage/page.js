@@ -28,6 +28,8 @@ export default function Homepage() {
   const [user, setUser] = useState(null);
   const [items, setItems] = useState([]);
   const [itemsState, setItemsState] = useState({ loading: false, error: null });
+  const [marketItems, setMarketItems] = useState([]);
+  const [marketState, setMarketState] = useState({ loading: false, error: null });
   const [isModalOpen, setModalOpen] = useState(false);
   const [newItem, setNewItem] = useState(createEmptyForm());
   const [editingItem, setEditingItem] = useState(null);
@@ -60,44 +62,51 @@ export default function Homepage() {
     }
   }, []);
 
-  useEffect(() => {
-    if (!user?.id) return;
-    let ignore = false;
-    async function loadItems() {
-      setItemsState({ loading: true, error: null });
-      try {
-        const response = await fetch(`/api/items?sellerId=${user.id}`);
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data?.error ?? "Failed to load items.");
-        }
-        if (!ignore) {
-          setItems(data.items ?? []);
-          setItemsState({ loading: false, error: null });
-        }
-      } catch (error) {
-        if (!ignore) {
-          setItemsState({ loading: false, error: error.message });
-        }
-      }
-    }
-    loadItems();
-    return () => {
-      ignore = true;
-    };
-  }, [user?.id]);
-
-  function refreshItems() {
+  async function fetchInventoryItems() {
     if (!user?.id) return;
     setItemsState({ loading: true, error: null });
-    fetch(`/api/items?sellerId=${user.id}`)
-      .then((res) => res.json().then((data) => [res.ok, data]))
-      .then(([ok, data]) => {
-        if (!ok) throw new Error(data?.error ?? "Failed to load items.");
-        setItems(data.items ?? []);
-        setItemsState({ loading: false, error: null });
-      })
-      .catch((error) => setItemsState({ loading: false, error: error.message }));
+    try {
+      const response = await fetch(`/api/items?sellerId=${user.id}`);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Failed to load items.");
+      }
+      setItems(data.items ?? []);
+      setItemsState({ loading: false, error: null });
+    } catch (error) {
+      setItemsState({ loading: false, error: error.message });
+    }
+  }
+
+  async function fetchMarketplaceItems() {
+    setMarketState({ loading: true, error: null });
+    try {
+      const response = await fetch("/api/items?type=marketplace");
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Failed to load marketplace items.");
+      }
+      setMarketItems(data.items ?? []);
+      setMarketState({ loading: false, error: null });
+    } catch (error) {
+      setMarketState({ loading: false, error: error.message });
+    }
+  }
+
+  useEffect(() => {
+    if (!user?.id) return;
+    fetchInventoryItems();
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchMarketplaceItems();
+  }, []);
+
+  function refreshItems() {
+    if (user?.id) {
+      fetchInventoryItems();
+    }
+    fetchMarketplaceItems();
   }
 
   function openNewItemModal() {
@@ -324,7 +333,8 @@ export default function Homepage() {
   }
 
   const inventoryItems = items.filter((item) => item.type !== "marketplace");
-  const marketplaceItems = items.filter((item) => item.type === "marketplace");
+  const marketplaceItems = marketItems;
+  const canManageItem = (item) => item?.sellerId === user?.id;
 
   return (
         <main className="homepage-root">
@@ -451,30 +461,32 @@ export default function Homepage() {
                                         <div className="groceries-grid">
                                             {inventoryItems.map((item) => (
                                                 <article className="grocery-card" key={item.id}>
-                                                    <div className="grocery-card__overlay">
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-                                                                handleEditItem(item);
-                                                            }}
-                                                        >
-                                                            Edit
-                                                        </button>
-                                                        {item.type !== "marketplace" && (
+                                                    {canManageItem(item) && (
+                                                        <div className="grocery-card__overlay">
                                                             <button
                                                                 type="button"
                                                                 onClick={(e) => {
                                                                     e.preventDefault();
                                                                     e.stopPropagation();
-                                                                    handleSellItem(item);
+                                                                    handleEditItem(item);
                                                                 }}
                                                             >
-                                                                Sell
+                                                                Edit
                                                             </button>
-                                                        )}
-                                                    </div>
+                                                            {item.type !== "marketplace" && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        handleSellItem(item);
+                                                                    }}
+                                                                >
+                                                                    Sell
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                     <div className="grocery-card__image-wrap">
                                                         {item.imagePath ? (
                                                             <Image
@@ -540,21 +552,26 @@ export default function Homepage() {
                                             Browse groceries your neighbours are
                                             selling or giving away near you.
                                         </p>
+                                        {marketState.error && (
+                                            <p className="helper-text error">{marketState.error}</p>
+                                        )}
                                         <div className="groceries-grid">
                                             {marketplaceItems.map((item) => (
                                                 <article className="grocery-card" key={`${item.id}-market`}>
-                                                    <div className="grocery-card__overlay">
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-                                                                handleEditItem(item);
-                                                            }}
-                                                        >
-                                                            Edit
-                                                        </button>
-                                                    </div>
+                                                    {canManageItem(item) && (
+                                                        <div className="grocery-card__overlay">
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    handleEditItem(item);
+                                                                }}
+                                                            >
+                                                                Edit
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                     <div className="grocery-card__image-wrap">
                                                         {item.imagePath ? (
                                                             <Image
@@ -594,7 +611,7 @@ export default function Homepage() {
                                                 </article>
                                             ))}
                                         </div>
-                                        {marketplaceItems.length === 0 && !itemsState.loading && (
+                                        {marketplaceItems.length === 0 && !marketState.loading && (
                                             <p className="helper-text">
                                                 No marketplace items yet.
                                             </p>
