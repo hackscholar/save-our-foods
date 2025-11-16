@@ -169,3 +169,55 @@ Return JSON like:
     raw: parsed,
   };
 }
+
+export async function generatePriceSuggestion({
+  name,
+  quantity,
+  expiryDate,
+  dateOfPurchase,
+}) {
+  if (!name) {
+    throw new Error("Item name is required to estimate price.");
+  }
+
+  const aiClient = ensureGeminiClient();
+  const modelName = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+  const model = aiClient.getGenerativeModel({ model: modelName });
+
+  const prompt = `
+You estimate listing prices for pre-owned groceries/ingredients.
+Return JSON:
+{
+  "price": number,
+  "explanation": "string"
+}
+Input details:
+- name: "${name}"
+- quantity: "${quantity ?? "unknown"}"
+- expiryDate: "${expiryDate ?? "unknown"}"
+- dateOfPurchase: "${dateOfPurchase ?? "unknown"}"
+
+Assume USD prices. Reference typical online prices, then discount for freshness and proximity to expiry.
+Explain your reasoning briefly (include expiry impact or market comparison). If unsure, give best estimate.
+  `.trim();
+
+  const result = await model.generateContent({
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: prompt }],
+      },
+    ],
+  });
+
+  const parsed = parseModelResponse(result.response.text());
+  if (parsed.price === undefined || parsed.price === null) {
+    throw new Error("AI could not estimate a price.");
+  }
+
+  return {
+    price: Number(parsed.price),
+    explanation: parsed.explanation ?? "Estimated using comparable online prices and freshness.",
+    raw: parsed,
+  };
+}
