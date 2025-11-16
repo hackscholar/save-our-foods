@@ -10,8 +10,11 @@ export async function POST(request) {
   }
 
   const submission = {
-    name: String(payload?.name ?? "").trim(),
+    firstName: String(payload?.firstName ?? payload?.first_name ?? "").trim(),
+    lastName: String(payload?.lastName ?? payload?.last_name ?? "").trim(),
+    username: String(payload?.username ?? "").trim(),
     email: String(payload?.email ?? "").trim().toLowerCase(),
+    phone: String(payload?.phone ?? "").trim(),
     password: String(payload?.password ?? ""),
   };
 

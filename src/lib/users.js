@@ -1,92 +1,73 @@
-import crypto from "crypto";
-import { getSupabaseClient } from "@/lib/supabase";
+import {
+  getSupabaseAnonClient,
+  getSupabaseServiceClient,
+} from "@/lib/supabase";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const USERS_TABLE = "app_users";
-
-export async function findUserByEmail(email) {
-  if (!email) return null;
-  const normalizedEmail = email.trim().toLowerCase();
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from(USERS_TABLE)
-    .select("*")
-    .eq("email", normalizedEmail)
-    .maybeSingle();
-
-  if (error && error.code !== "PGRST116") {
-    throw error;
-  }
-
-  return data ? formatUserRecord(data) : null;
-}
+const USERNAME_REGEX = /^[a-zA-Z0-9_]+$/;
+const PHONE_REGEX = /^\+[1-9]\d{1,14}$/;
 
 export function sanitizeUser(user) {
   if (!user) return null;
-  const { passwordHash, passwordSalt, ...safeUser } = user;
-  return safeUser;
+  const metadata = user.user_metadata ?? {};
+  const firstName = metadata.firstName ?? metadata.given_name ?? null;
+  const lastName = metadata.lastName ?? metadata.family_name ?? null;
+  const username = metadata.username ?? null;
+  const phone = user.phone ?? metadata.phone ?? null;
+
+  const composedName =
+    metadata.name ??
+    metadata.full_name ??
+    ([firstName, lastName].filter(Boolean).join(" ") || null);
+
+  return {
+    id: user.id,
+    email: user.email,
+    username,
+    firstName,
+    lastName,
+    phone,
+    name: composedName,
+    createdAt: user.created_at ?? null,
+    emailConfirmedAt: user.email_confirmed_at ?? null,
+    lastSignInAt: user.last_sign_in_at ?? null,
+    appMetadata: user.app_metadata ?? {},
+    userMetadata: metadata,
+  };
 }
 
-function createPasswordHash(password, salt = crypto.randomBytes(16).toString("hex")) {
-  const derived = crypto.scryptSync(password, salt, 64).toString("hex");
-  return { salt, hash: derived };
-}
-
-export async function createUser({ name, email, password }) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const trimmedName = name.trim();
-  const { salt, hash } = createPasswordHash(password);
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from(USERS_TABLE)
-    .insert({
-      name: trimmedName,
-      email: normalizedEmail,
-      password_hash: hash,
-      password_salt: salt,
-    })
-    .select("*")
-    .single();
-
-  if (error) {
-    if (error.code === "23505") {
-      const dup = new Error("Account already exists for this email");
-      dup.code = "ACCOUNT_EXISTS";
-      throw dup;
-    }
-    throw error;
-  }
-
-  return sanitizeUser(formatUserRecord(data));
-}
-
-export async function verifyUserCredentials(email, password) {
-  const user = await findUserByEmail(email);
-  if (!user) {
-    return null;
-  }
-
-  const { passwordHash, passwordSalt } = user;
-  try {
-    const attempted = Buffer.from(createPasswordHash(password, passwordSalt).hash, "hex");
-    const expected = Buffer.from(passwordHash, "hex");
-    const matches =
-      expected.length === attempted.length && crypto.timingSafeEqual(expected, attempted);
-    return matches ? sanitizeUser(user) : null;
-  } catch {
-    return null;
-  }
-}
-
-export function validateRegistrationInput({ name, email, password }) {
+export function validateRegistrationInput({
+  firstName,
+  lastName,
+  username,
+  email,
+  phone,
+  password,
+}) {
   const issues = {};
 
-  if (!name || name.trim().length < 2) {
-    issues.name = "Name must be at least 2 characters long.";
+  if (!firstName || firstName.trim().length < 2) {
+    issues.firstName = "First name must be at least 2 characters long.";
+  }
+
+  if (!lastName || lastName.trim().length < 2) {
+    issues.lastName = "Last name must be at least 2 characters long.";
+  }
+
+  if (!username || username.trim().length < 3) {
+    issues.username = "Username must be at least 3 characters long.";
+  } else if (!USERNAME_REGEX.test(username.trim())) {
+    issues.username =
+      "Username can only contain letters, numbers, and underscores.";
   }
 
   if (!email || !EMAIL_REGEX.test(email.trim().toLowerCase())) {
     issues.email = "A valid email address is required.";
+  }
+
+  const normalizedPhone = phone?.trim();
+  if (normalizedPhone && !PHONE_REGEX.test(normalizedPhone)) {
+    issues.phone = "Phone number must use international E.164 format (e.g. +12065550123).";
   }
 
   if (!password || password.length < 8) {
@@ -110,16 +91,82 @@ export function validateLoginInput({ email, password }) {
   return issues;
 }
 
-function formatUserRecord(record) {
-  if (!record) return null;
-  const formatted = {
-    ...record,
-    passwordHash: record.passwordHash ?? record.password_hash,
-    passwordSalt: record.passwordSalt ?? record.password_salt,
-    createdAt: record.createdAt ?? record.created_at,
+export async function createUser({
+  firstName,
+  lastName,
+  username,
+  email,
+  phone,
+  password,
+}) {
+  const supabase = getSupabaseServiceClient();
+  const normalizedEmail = email.trim().toLowerCase();
+  const trimmedFirst = firstName.trim();
+  const trimmedLast = lastName.trim();
+  const trimmedUsername = username.trim();
+  const normalizedPhone = phone?.trim() ?? null;
+
+  const payload = {
+    email: normalizedEmail,
+    password,
+    email_confirm: true,
+    user_metadata: {
+      firstName: trimmedFirst,
+      lastName: trimmedLast,
+      username: trimmedUsername,
+      phone: normalizedPhone,
+      name: `${trimmedFirst} ${trimmedLast}`.trim(),
+    },
   };
-  delete formatted.password_hash;
-  delete formatted.password_salt;
-  delete formatted.created_at;
-  return formatted;
+
+  if (normalizedPhone) {
+    payload.phone = normalizedPhone;
+  }
+
+  const { data, error } = await supabase.auth.admin.createUser(payload);
+
+  if (error) {
+    if (
+      error.status === 422 ||
+      error.message?.toLowerCase().includes("already registered")
+    ) {
+      const dup = new Error("Account already exists for this email");
+      dup.code = "ACCOUNT_EXISTS";
+      throw dup;
+    }
+    throw error;
+  }
+
+  return sanitizeUser(data.user);
+}
+
+export async function verifyUserCredentials(email, password) {
+  const supabase = getSupabaseAnonClient();
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: normalizedEmail,
+    password,
+  });
+
+  if (error) {
+    if (
+      error.status === 400 ||
+      error.status === 422 ||
+      error.message?.toLowerCase().includes("invalid login credentials")
+    ) {
+      return null;
+    }
+    throw error;
+  }
+
+  return {
+    user: sanitizeUser(data.user),
+    session: {
+      accessToken: data.session?.access_token ?? null,
+      refreshToken: data.session?.refresh_token ?? null,
+      expiresAt: data.session?.expires_at ?? null,
+      tokenType: data.session?.token_type ?? "bearer",
+    },
+  };
 }

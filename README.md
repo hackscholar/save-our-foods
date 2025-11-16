@@ -20,43 +20,64 @@ You can start editing the page by modifying `app/page.js`. The page auto-updates
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Auth API (Supabase-backed)
+## Auth API (Supabase Auth)
 
-The API routes use Supabase as the persistence layer. Provide the following environment variables (for example inside `.env.local`):
+The API routes call Supabase Auth directly—no custom password hashing or tables are required. Set these variables in `.env.local`:
 
 ```
 SUPABASE_URL=<your-project-url>
+SUPABASE_ANON_KEY=<anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 ```
 
-> ⚠️ Use the **service role key** on the server only. Never expose it to the browser.
-
-Create a table named `app_users` (or adjust `USERS_TABLE` in `src/lib/users.js`) with at least:
-
-```sql
-create table public.app_users (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  email text unique not null,
-  password_hash text not null,
-  password_salt text not null,
-  created_at timestamptz not null default now()
-);
-```
+> ⚠️ The service role key must only be used on the server (API routes, middleware, edge functions). Never expose it to the browser.
 
 ### Create account
 
 - **Endpoint:** `POST /api/auth/register`
-- **Body:** `{ "name": "Jane Doe", "email": "jane@example.com", "password": "supersecret" }`
-- **Response:** `201` with `{ "user": { "id": "...", "name": "...", "email": "...", "createdAt": "..." } }`
+- **Body:**
+  ```json
+  {
+    "firstName": "Jane",
+    "lastName": "Doe",
+    "username": "jdoe",
+    "email": "jane@example.com",
+    "phone": "+12065550123",
+    "password": "supersecret"
+  }
+  ```
+- **Response:** `201` with `{ "user": { "id": "...", "email": "...", "name": "...", ... } }`
+  - `phone` must be supplied in international [E.164 format](https://www.twilio.com/docs/glossary/what-e164) (leading `+` and digits only). Omit the field if you don’t want to collect a phone number yet.
 
 ### Login
 
 - **Endpoint:** `POST /api/auth/login`
 - **Body:** `{ "email": "jane@example.com", "password": "supersecret" }`
-- **Response:** `200` with `{ "user": { ... }, "sessionToken": "<uuid>" }`
+- **Response:** `200` with `{ "user": { ... }, "session": { "accessToken": "...", "refreshToken": "...", "expiresAt": 123 } }`
 
-Passwords are hashed with `scrypt` and compared with `timingSafeEqual` before returning sanitized user data.
+Return values mirror Supabase Auth responses, so you can forward the session tokens to the client or exchange them for cookies depending on your app’s needs.
+
+## Items API
+
+A simple `items` table in Supabase (columns: `id uuid default gen_random_uuid() primary key, seller_id uuid not null, type text not null default 'inventory', name text not null, expiry_date date, date_of_purchase date, price numeric, quantity integer not null default 0, image_path text, created_at timestamptz default now(), updated_at timestamptz default now()`) powers the item upload endpoint.
+
+- **Endpoint:** `POST /api/items`
+- **Body:**
+  ```json
+  {
+    "sellerId": "00000000-0000-0000-0000-000000000000",
+    "type": "inventory",
+    "name": "Cherry Tomatoes",
+    "expiryDate": "2025-12-01",
+    "dateOfPurchase": "2025-11-15",
+    "price": 4.99,
+    "quantity": 3,
+    "imagePath": "images/tomatoes.png"
+  }
+  ```
+- **Response:** `201` with `{ "item": { "id": "...", "sellerId": "...", "name": "...", ... } }`
+
+`type` defaults to `inventory` if omitted, and `quantity` must be a non‑negative integer. Dates should be ISO-8601 strings (e.g. `YYYY-MM-DD`). Use your Supabase `seller_id` (often the Supabase Auth user ID) to associate items with a user.
 
 ## Learn More
 

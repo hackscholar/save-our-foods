@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { validateLoginInput, verifyUserCredentials } from "@/lib/users";
-import crypto from "crypto";
 
 export async function POST(request) {
   let payload;
@@ -23,16 +22,13 @@ export async function POST(request) {
     );
   }
 
-  const user = await verifyUserCredentials(submission.email, submission.password);
-  if (!user) {
+  const authResult = await verifyUserCredentials(submission.email, submission.password);
+  if (!authResult) {
     return NextResponse.json(
       { error: "Email or password is incorrect." },
       { status: 401 },
     );
   }
 
-  return NextResponse.json({
-    user,
-    sessionToken: crypto.randomUUID(),
-  });
+  return NextResponse.json(authResult);
 }

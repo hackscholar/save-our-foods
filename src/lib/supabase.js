@@ -10,18 +10,36 @@ function ensureEnv(name) {
   return value;
 }
 
-export function getSupabaseClient() {
-  if (!globalForSupabase.__supabaseClient) {
-    const url = ensureEnv("SUPABASE_URL");
+function buildClient(key) {
+  const url = ensureEnv("SUPABASE_URL");
+  return createClient(url, key, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
+
+export function getSupabaseServiceClient() {
+  if (!globalForSupabase.__supabaseServiceClient) {
     const serviceKey = ensureEnv("SUPABASE_SERVICE_ROLE_KEY");
-
-    globalForSupabase.__supabaseClient = createClient(url, serviceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
+    globalForSupabase.__supabaseServiceClient = buildClient(serviceKey);
   }
+  return globalForSupabase.__supabaseServiceClient;
+}
 
-  return globalForSupabase.__supabaseClient;
+export function getSupabaseAnonClient() {
+  if (!globalForSupabase.__supabaseAnonClient) {
+    const anonKey =
+      process.env.SUPABASE_ANON_KEY ??
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+      null;
+    if (!anonKey) {
+      throw new Error(
+        "Missing required environment variable: SUPABASE_ANON_KEY",
+      );
+    }
+    globalForSupabase.__supabaseAnonClient = buildClient(anonKey);
+  }
+  return globalForSupabase.__supabaseAnonClient;
 }
