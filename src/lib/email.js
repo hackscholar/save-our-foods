@@ -22,6 +22,7 @@ export async function sendPurchaseNotificationEmail({
   itemName,
   itemPrice,
   itemQuantity,
+  customMessage,
 }) {
   const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
 
@@ -57,6 +58,13 @@ export async function sendPurchaseNotificationEmail({
             <p style="margin: 5px 0;"><strong>Email:</strong> ${buyerEmail || "Not provided"}</p>
           </div>
           
+          ${customMessage ? `
+          <div style="background-color: #fff9e6; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+            <h3 style="margin-top: 0; color: #2c3e50;">Message from Buyer:</h3>
+            <p style="margin: 0; white-space: pre-wrap;">${customMessage.replace(/\n/g, '<br>')}</p>
+          </div>
+          ` : ''}
+          
           <p>Please contact the buyer to arrange the purchase details.</p>
           
           <p style="margin-top: 30px; color: #666; font-size: 14px;">
@@ -83,7 +91,7 @@ Buyer Information:
 Name: ${buyerName || "Not provided"}
 Email: ${buyerEmail || "Not provided"}
 
-Please contact the buyer to arrange the purchase details.
+${customMessage ? `Message from Buyer:\n${customMessage}\n\n` : ''}Please contact the buyer to arrange the purchase details.
 
 Best regards,
 Save My Foods Team

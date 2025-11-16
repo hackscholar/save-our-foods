@@ -13,6 +13,7 @@ export async function POST(request) {
 
   const itemId = payload?.itemId ?? payload?.item_id ?? null;
   const buyerId = payload?.buyerId ?? payload?.buyer_id ?? null;
+  const customMessage = payload?.message ?? payload?.customMessage ?? null;
 
   if (!itemId) {
     return NextResponse.json(
@@ -78,6 +79,7 @@ export async function POST(request) {
         itemName: item.name,
         itemPrice: item.price,
         itemQuantity: item.quantity,
+        customMessage: customMessage,
       });
     } catch (emailError) {
       console.error("Failed to send email notification:", emailError);
