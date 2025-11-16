@@ -124,6 +124,20 @@ export async function updateItem(itemId, patch = {}) {
   return formatItem(data);
 }
 
+export async function listItemsBySeller(sellerId) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(ITEMS_TABLE)
+    .select("*")
+    .eq("seller_id", sellerId);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).map(formatItem);
+}
+
 export function formatItem(record) {
   if (!record) return null;
   return {
