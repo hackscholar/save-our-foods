@@ -14,6 +14,7 @@ const CHATBOT_IMAGES = {
 };
 
 const CHATBOT_SPEAK_DELAY = 1500;
+const INITIAL_CHATBOT_RECIPE = { loading: false, data: null, error: null };
 
 function toDateInput(value) {
   if (!value) return "";
@@ -174,6 +175,7 @@ export default function Homepage() {
   const [notificationToast, setNotificationToast] = useState(null);
   const [chatbotState, setChatbotState] = useState("idle");
   const [isIngredientPopupOpen, setIngredientPopupOpen] = useState(false);
+  const [chatbotRecipe, setChatbotRecipe] = useState(INITIAL_CHATBOT_RECIPE);
 
   useEffect(() => {
     const timer = setTimeout(() => setHasEntered(true), 3000);
@@ -256,6 +258,7 @@ export default function Homepage() {
       clearTimeout(chatbotTimerRef.current);
       chatbotTimerRef.current = null;
     }
+    setChatbotRecipe(INITIAL_CHATBOT_RECIPE);
 
     setChatbotState((previous) => {
       if (previous === "speaking") {
@@ -274,29 +277,33 @@ export default function Homepage() {
       clearTimeout(chatbotTimerRef.current);
       chatbotTimerRef.current = null;
     }
+    setChatbotRecipe(INITIAL_CHATBOT_RECIPE);
     setChatbotState("idle");
   }, []);
 
-  async function fetchNotificationsList(limit = 50) {
-    if (!user?.id) return;
-    setNotificationsState({ loading: true, error: null });
-    try {
-      const response = await fetch(
-        `/api/notifications?userId=${user.id}&limit=${limit}`,
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.error ?? "Failed to load notifications.");
+  const fetchNotificationsList = useCallback(
+    async (limit = 50) => {
+      if (!user?.id) return;
+      setNotificationsState({ loading: true, error: null });
+      try {
+        const response = await fetch(
+          `/api/notifications?userId=${user.id}&limit=${limit}`,
+        );
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data?.error ?? "Failed to load notifications.");
+        }
+        const next = Array.isArray(data.notifications)
+          ? data.notifications.map(formatNotification).filter(Boolean)
+          : [];
+        setNotifications(next);
+        setNotificationsState({ loading: false, error: null });
+      } catch (error) {
+        setNotificationsState({ loading: false, error: error.message });
       }
-      const next = Array.isArray(data.notifications)
-        ? data.notifications.map(formatNotification).filter(Boolean)
-        : [];
-      setNotifications(next);
-      setNotificationsState({ loading: false, error: null });
-    } catch (error) {
-      setNotificationsState({ loading: false, error: error.message });
-    }
-  }
+    },
+    [user?.id],
+  );
 
   function handleNotificationsToggle() {
     if (!user) return;
@@ -350,14 +357,52 @@ export default function Homepage() {
     }
   }
 
+  const requestRecipeSuggestion = useCallback(async () => {
+    if (!user?.id) {
+      setChatbotRecipe({
+        loading: false,
+        data: null,
+        error: "Sign in to get personalized recipe ideas.",
+      });
+      return;
+    }
+    setChatbotRecipe({ loading: true, data: null, error: null });
+    try {
+      const response = await fetch("/api/recipes/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sellerId: user.id }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Unable to suggest a recipe right now.");
+      }
+      if (!data.recipe) {
+        throw new Error("No recipe ideas available.");
+      }
+      setChatbotRecipe({ loading: false, data: data.recipe, error: null });
+    } catch (error) {
+      setChatbotRecipe({
+        loading: false,
+        data: null,
+        error: error.message ?? "Unable to suggest a recipe right now.",
+      });
+    }
+  }, [user?.id]);
+
   const handleChatbotYes = useCallback(() => {
     handleChatbotInteractionEnd();
     setIngredientPopupOpen(true);
   }, [handleChatbotInteractionEnd]);
 
   const handleChatbotNo = useCallback(() => {
-    handleChatbotInteractionEnd();
-  }, [handleChatbotInteractionEnd]);
+    if (chatbotTimerRef.current) {
+      clearTimeout(chatbotTimerRef.current);
+      chatbotTimerRef.current = null;
+    }
+    setChatbotState("speaking");
+    requestRecipeSuggestion();
+  }, [requestRecipeSuggestion]);
 
   const handleIngredientPopupClose = useCallback(() => {
     setIngredientPopupOpen(false);
@@ -453,7 +498,7 @@ export default function Homepage() {
       return;
     }
     fetchNotificationsList();
-  }, [user?.id]);
+  }, [user?.id, fetchNotificationsList]);
 
   useEffect(() => {
     if (!user) {
@@ -986,7 +1031,7 @@ export default function Homepage() {
                                             <p className="notification-empty">Loading alerts...</p>
                                         ) : notifications.length === 0 ? (
                                             <p className="notification-empty">
-                                                You're all caught up.
+                                                You&apos;re all caught up.
                                             </p>
                                         ) : (
                                             <ul className="notification-list">
@@ -1545,23 +1590,51 @@ export default function Homepage() {
                             className="chatbot-bubble-image"
                         />
                         <div className="chatbot-bubble-content">
-                            <p className="chatbot-bubble-text">Have you eaten today?</p>
-                            <div className="chatbot-bubble-buttons">
-                                <button
-                                    type="button"
-                                    className="chatbot-bubble-button"
-                                    onClick={handleChatbotYes}
-                                >
-                                    Yes
-                                </button>
-                                <button
-                                    type="button"
-                                    className="chatbot-bubble-button"
-                                    onClick={handleChatbotNo}
-                                >
-                                    No
-                                </button>
-                            </div>
+                            {chatbotRecipe.data ? (
+                                <div className="chatbot-recipe">
+                                    <p className="chatbot-recipe-label">Dinner inspo</p>
+                                    <p className="chatbot-recipe-title">
+                                        {chatbotRecipe.data.title ?? "Pantry inspiration"}
+                                    </p>
+                                    <a
+                                        href={chatbotRecipe.data.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="chatbot-recipe-link"
+                                    >
+                                        View recipe online
+                                    </a>
+                                </div>
+                            ) : (
+                                <>
+                                    <p className="chatbot-bubble-text">Have you eaten today?</p>
+                                    {chatbotRecipe.error && (
+                                        <p className="chatbot-recipe-error">{chatbotRecipe.error}</p>
+                                    )}
+                                    {chatbotRecipe.loading ? (
+                                        <p className="chatbot-recipe-loading">
+                                            Stirring together a recipe from your groceries…
+                                        </p>
+                                    ) : (
+                                        <div className="chatbot-bubble-buttons">
+                                            <button
+                                                type="button"
+                                                className="chatbot-bubble-button"
+                                                onClick={handleChatbotYes}
+                                            >
+                                                Yes
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="chatbot-bubble-button"
+                                                onClick={handleChatbotNo}
+                                            >
+                                                No
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
+                            )}
                         </div>
                     </div>
                 )}

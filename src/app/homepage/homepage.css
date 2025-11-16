@@ -1232,6 +1232,50 @@
     outline-offset: 2px;
 }
 
+.chatbot-recipe {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    text-align: left;
+}
+
+.chatbot-recipe-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #0f766e;
+    margin: 0;
+}
+
+.chatbot-recipe-title {
+    margin: 0;
+    font-weight: 700;
+    color: #064e3b;
+    font-size: 1rem;
+}
+
+.chatbot-recipe-link {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #0f766e;
+    text-decoration: underline;
+    margin-top: 0.1rem;
+}
+
+.chatbot-recipe-loading,
+.chatbot-recipe-error {
+    font-size: 0.8rem;
+    margin: 0.4rem 0 0;
+}
+
+.chatbot-recipe-loading {
+    color: #0f172a;
+}
+
+.chatbot-recipe-error {
+    color: #b91c1c;
+}
+
 /* RESPONSIVE */
 @media (max-width: 900px) {
     .homepage-layout {

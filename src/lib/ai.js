@@ -221,3 +221,52 @@ Explain your reasoning briefly (include expiry impact or market comparison). If 
     raw: parsed,
   };
 }
+
+export async function generateRecipeFromInventory({ items = [], notes = null } = {}) {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error("At least one pantry item is required to suggest a recipe.");
+  }
+
+  const aiClient = ensureGeminiClient();
+  const modelName = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+  const model = aiClient.getGenerativeModel({ model: modelName });
+
+  const pantryLines = items
+    .map((item, index) => {
+      const qty = item.quantity ?? "unknown";
+      const expiry = item.expiryDate ? new Date(item.expiryDate).toISOString().slice(0, 10) : "no-expiry";
+      return `${index + 1}. ${item.name} — qty: ${qty}, expires: ${expiry}`;
+    })
+    .join("\n");
+
+  const prompt = `
+You curate recipe recommendations. Using the pantry items below (ordered by urgency), suggest **one existing online recipe** that uses as many of them as reasonable, prioritizing ingredients expiring soonest.
+Pantry:
+${pantryLines}
+Extra notes: ${notes ?? "none"}.
+
+Return strict JSON:
+{
+  "title": "string",
+  "url": "https://recipe-link"
+}
+- Reply with only the recipe name and a publicly accessible recipe URL.
+- If no perfect recipe exists, choose the best match; if absolutely nothing fits, set url to "https://www.savemyfoods.com/pantry-tips".
+`.trim();
+
+  const response = await model.generateContent({
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: prompt }],
+      },
+    ],
+  });
+
+  const parsed = parseModelResponse(response.response.text());
+  return {
+    title: parsed.title ?? "Pantry Inspiration",
+    url: parsed.url ?? "https://www.savemyfoods.com/pantry-tips",
+    raw: parsed,
+  };
+}
