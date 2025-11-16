@@ -16,7 +16,7 @@ function toNumber(value) {
 export function validateItemInput(payload = {}) {
   const issues = {};
 
-  if (!payload.name || payload.name.trim().length < 2) {
+  if (payload.name && payload.name.trim().length < 2) {
     issues.name = "Name must be at least 2 characters long.";
   }
 
@@ -56,7 +56,7 @@ export async function createItem(payload) {
   const data = {
     seller_id: payload.sellerId,
     type: payload.type ?? "inventory",
-    name: payload.name.trim(),
+    name: payload.name?.trim() || "Pending classification",
     expiry_date: payload.expiryDate ?? null,
     date_of_purchase: payload.dateOfPurchase ?? null,
     price:
@@ -76,6 +76,52 @@ export async function createItem(payload) {
   }
 
   return formatItem(inserted);
+}
+
+export async function getItemById(itemId) {
+  if (!itemId) return null;
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(ITEMS_TABLE)
+    .select("*")
+    .eq("id", itemId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ? formatItem(data) : null;
+}
+
+export async function updateItem(itemId, patch = {}) {
+  const supabase = getSupabaseServiceClient();
+  const updatePayload = {};
+
+  if (patch.name !== undefined) updatePayload.name = patch.name;
+  if (patch.type !== undefined) updatePayload.type = patch.type;
+  if (patch.expiryDate !== undefined) updatePayload.expiry_date = patch.expiryDate;
+  if (patch.dateOfPurchase !== undefined) updatePayload.date_of_purchase = patch.dateOfPurchase;
+  if (patch.price !== undefined) updatePayload.price = patch.price;
+  if (patch.quantity !== undefined) updatePayload.quantity = patch.quantity;
+  if (patch.imagePath !== undefined) updatePayload.image_path = patch.imagePath;
+
+  if (Object.keys(updatePayload).length === 0) {
+    throw new Error("No valid fields provided to update item.");
+  }
+
+  const { data, error } = await supabase
+    .from(ITEMS_TABLE)
+    .update(updatePayload)
+    .eq("id", itemId)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return formatItem(data);
 }
 
 export function formatItem(record) {

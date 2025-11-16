@@ -47,7 +47,7 @@ SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
   }
   ```
 - **Response:** `201` with `{ "user": { "id": "...", "email": "...", "name": "...", ... } }`
-  - `phone` must be supplied in international [E.164 format](https://www.twilio.com/docs/glossary/what-e164) (leading `+` and digits only). Omit the field if you don’t want to collect a phone number yet.
+  - `phone` must be supplied in international [E.164 format](https://www.twilio.com/docs/glossary/what-e164) (leading `+` and digits only). Omit the field if you do not want to collect a phone number yet.
 
 ### Login
 
@@ -72,12 +72,54 @@ A simple `items` table in Supabase (columns: `id uuid default gen_random_uuid() 
     "dateOfPurchase": "2025-11-15",
     "price": 4.99,
     "quantity": 3,
-    "imagePath": "images/tomatoes.png"
+    "imagePath": "https://public-bucket.example.com/tomatoes.jpg"
   }
   ```
 - **Response:** `201` with `{ "item": { "id": "...", "sellerId": "...", "name": "...", ... } }`
 
-`type` defaults to `inventory` if omitted, and `quantity` must be a non‑negative integer. Dates should be ISO-8601 strings (e.g. `YYYY-MM-DD`). Use your Supabase `seller_id` (often the Supabase Auth user ID) to associate items with a user.
+`type` defaults to `inventory` if omitted, and `quantity` must be a non-negative integer. Dates should be ISO-8601 strings (e.g. `YYYY-MM-DD`). Use your Supabase `seller_id` (often the Supabase Auth user ID) to associate items with a user.
+
+### AI enrichment (Gemini)
+
+Add the Gemini environment variables as well:
+
+```
+GEMINI_API_KEY=<google-ai-studio-key>
+GEMINI_MODEL=gemini-1.5-flash   # optional override
+```
+
+The `/api/items/enrich` route uses Gemini to suggest a name and expiry date from an image. Provide either the `itemId` (it will read `image_path` from Supabase) or a direct `imageUrl` if you just want the AI response.
+
+- **Endpoint:** `POST /api/items/enrich`
+- **Body:**
+  ```json
+  {
+    "itemId": "00000000-0000-0000-0000-000000000000",
+    "imageUrl": "https://public-bucket.example.com/tomatoes.jpg"
+  }
+  ```
+- **Response:**
+  ```json
+  {
+    "ai": {
+      "name": "Cherry Tomatoes",
+      "expiryDate": "2025-12-05",
+      "confidence": 0.72,
+      "notes": "Expiration date read from the printed label.",
+      "raw": { "...": "..." }
+    },
+    "item": {
+      "id": "...",
+      "name": "Cherry Tomatoes",
+      "expiryDate": "2025-12-05",
+      "...": "..."
+    }
+  }
+  ```
+
+When an `itemId` is supplied, the backend updates that row with any non-null AI suggestion. If you rely on Supabase Storage, generate a signed URL before calling this endpoint so Gemini can access the file.
+
+> ℹ️ When `itemId` is provided, the enrichment route also sends the stored `date_of_purchase` to Gemini so it can estimate an expiry date relative to when the item was bought.
 
 ## Learn More
 
