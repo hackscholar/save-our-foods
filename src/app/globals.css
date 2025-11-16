@@ -153,6 +153,21 @@ body {
   background: #f0e6d5;
 }
 
+.danger-button {
+  background: #f56565;
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  margin-top: 0.2rem;
+}
+
+.danger-button:hover {
+  opacity: 0.9;
+}
+
 .wide {
   width: 100%;
 }

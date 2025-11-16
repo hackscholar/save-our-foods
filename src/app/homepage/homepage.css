@@ -491,6 +491,37 @@
     color: #4b5563;
 }
 
+.filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    margin: 1rem 0 1.2rem;
+}
+
+.filter-input {
+    flex: 1 1 220px;
+    border-radius: 999px;
+    border: 1px solid #d1d5db;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.95rem;
+    background: #ffffff;
+}
+
+.filter-input:focus {
+    outline: none;
+    border-color: #1e9f49;
+    box-shadow: 0 0 0 2px rgba(30, 159, 73, 0.15);
+}
+
+.filter-select {
+    flex: 0 0 220px;
+    border-radius: 999px;
+    border: 1px solid #d1d5db;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.95rem;
+    background: #f9fafb;
+}
+
 .groceries-grid {
     margin-top: 1rem;
     display: grid;
@@ -631,7 +662,7 @@
     pointer-events: none;
 }
 
-.grocery-card__overlay button {
+.grocery-card__overlay-button {
     border: none;
     border-radius: 999px;
     padding: 0.45rem 0.9rem;
@@ -639,6 +670,11 @@
     color: #111827;
     font-weight: 600;
     cursor: pointer;
+}
+
+.grocery-card__overlay-button--danger {
+    background: #fee2e2;
+    color: #b91c1c;
 }
 
 .grocery-card:hover .grocery-card__overlay {
