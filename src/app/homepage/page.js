@@ -808,11 +808,33 @@ export default function Homepage() {
     setCartItems((prev) => prev.filter((item) => item.id !== id));
   }
 
+  async function notifySellersFromCart(itemsToNotify) {
+    if (!user?.id || !Array.isArray(itemsToNotify) || itemsToNotify.length === 0) {
+      return;
+    }
+    await Promise.allSettled(
+      itemsToNotify.map((item) => {
+        if (!item?.id) return Promise.resolve();
+        return fetch("/api/items/buy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            itemId: item.id,
+            buyerId: user.id,
+          }),
+        }).catch((error) => {
+          console.error("Failed to notify seller for item", item.id, error);
+        });
+      }),
+    );
+  }
+
   async function checkoutCart() {
     if (cartItems.length === 0 || !user?.email) {
       setCartState({ loading: false, error: "Cart is empty or missing buyer email.", success: null });
       return;
     }
+    const itemsSnapshot = [...cartItems];
     setCartState({ loading: true, error: null, success: null });
     try {
       const response = await fetch("/api/cart/checkout", {
@@ -834,6 +856,7 @@ export default function Homepage() {
       if (!response.ok) {
         throw new Error(data?.error ?? "Unable to checkout.");
       }
+      await notifySellersFromCart(itemsSnapshot);
       setCartItems([]);
       if (data.pdf) {
         const link = document.createElement("a");

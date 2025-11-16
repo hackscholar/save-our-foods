@@ -44,13 +44,6 @@ export async function POST(request) {
       );
     }
 
-    if (!seller.email) {
-      return NextResponse.json(
-        { error: "Seller email not available." },
-        { status: 400 },
-      );
-    }
-
     // Get buyer information
     const buyer = await getUserById(buyerId);
     if (!buyer) {
@@ -86,6 +79,10 @@ export async function POST(request) {
       });
     } catch (notificationError) {
       console.error("Failed to log realtime notification:", notificationError);
+      return NextResponse.json(
+        { error: "Unable to record purchase notification." },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json(
