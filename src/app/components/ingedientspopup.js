@@ -12,8 +12,8 @@ export default function Popup({ isOpen, onClose, onConfirm }) {
   // TODO: replace with real AI call
   async function getIngredientsFromAiMock(file) {
     return `2 tomatoes
-1 onion
-3 cloves garlic`;
+            1 onion
+            3 cloves garlic`;
   }
 
   function parseIngredientString(str) {
@@ -61,8 +61,6 @@ export default function Popup({ isOpen, onClose, onConfirm }) {
     if (onConfirm) {
       onConfirm(ingredients);
     }
-    // you could also auto-close here if you want:
-    // onClose();
     console.log("Confirmed ingredients:", ingredients);
   }
 
