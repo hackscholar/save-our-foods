@@ -1,17 +1,55 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const globalForResend = globalThis;
+const globalForSmtp = globalThis;
 
-function ensureResendClient() {
-  if (!globalForResend.__resendClient) {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      // Return null instead of throwing - we'll handle this in the send function
-      return null;
-    }
-    globalForResend.__resendClient = new Resend(apiKey);
+function getBoolean(value) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    return ["true", "1", "yes", "on"].includes(value.trim().toLowerCase());
   }
-  return globalForResend.__resendClient;
+  return false;
+}
+
+function ensureSmtpTransport() {
+  if (globalForSmtp.__saveMyFoodsTransport) {
+    return globalForSmtp.__saveMyFoodsTransport;
+  }
+
+  const host = process.env.SMTP_HOST || "smtp.gmail.com";
+  const port = Number(process.env.SMTP_PORT ?? 587);
+  const secure =
+    process.env.SMTP_SECURE !== undefined ? getBoolean(process.env.SMTP_SECURE) : port === 465;
+  const user =
+    process.env.SMTP_USER ||
+    process.env.SMTP_USERNAME ||
+    process.env.SMTP_EMAIL ||
+    process.env.SMTP_LOGIN;
+  const pass =
+    process.env.SMTP_PASSWORD ||
+    process.env.SMTP_PASS ||
+    process.env.SMTP_APP_PASSWORD ||
+    process.env.SMTP_SECRET;
+
+  if (!user || !pass) {
+    return null;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: {
+      user,
+      pass,
+    },
+  });
+
+  globalForSmtp.__saveMyFoodsTransport = {
+    transporter,
+    fromAddress: process.env.SMTP_FROM_EMAIL || user,
+  };
+
+  return globalForSmtp.__saveMyFoodsTransport;
 }
 
 export async function sendPurchaseNotificationEmail({
@@ -23,10 +61,18 @@ export async function sendPurchaseNotificationEmail({
   itemPrice,
   itemQuantity,
 }) {
-  const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+  const client = ensureSmtpTransport();
+  if (!client) {
+    throw new Error(
+      "SMTP credentials are not configured. Please set SMTP_USER and SMTP_PASSWORD (or related variables).",
+    );
+  }
 
-  const subject = `New Purchase Request: ${itemName}`;
-  
+  const fromName = process.env.SMTP_FROM_NAME || "SaveMyFoods";
+  const fromEmail = client.fromAddress;
+  const replyTo = buyerEmail || undefined;
+  const subject = `Purchase request for ${itemName}`;
+
   const htmlContent = `
     <!DOCTYPE html>
     <html>
@@ -45,11 +91,11 @@ export async function sendPurchaseNotificationEmail({
           
           <p>You have received a new purchase request for your item:</p>
           
-          <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <h2 style="margin-top: 0; color: #2c3e50;">${itemName}</h2>
-            ${itemPrice ? `<p style="margin: 5px 0;"><strong>Price:</strong> $${Number(itemPrice).toFixed(2)}</p>` : ""}
-            ${itemQuantity ? `<p style="margin: 5px 0;"><strong>Quantity:</strong> ${itemQuantity}</p>` : ""}
-          </div>
+        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+          <h2 style="margin-top: 0; color: #2c3e50;">${itemName}</h2>
+          ${itemPrice ? `<p style="margin: 5px 0;"><strong>Price:</strong> $${Number(itemPrice).toFixed(2)}</p>` : ""}
+          ${itemQuantity ? `<p style="margin: 5px 0;"><strong>Quantity:</strong> ${itemQuantity}</p>` : ""}
+        </div>
           
           <div style="background-color: #e8f4f8; padding: 15px; border-radius: 8px; margin: 20px 0;">
             <h3 style="margin-top: 0; color: #2c3e50;">Buyer Information:</h3>
@@ -89,26 +135,20 @@ Best regards,
 Save My Foods Team
   `.trim();
 
-  const resendClient = ensureResendClient();
-  if (!resendClient) {
-    throw new Error("RESEND_API_KEY is not configured. Please set it in your environment variables.");
-  }
-
   try {
-    const { data, error } = await resendClient.emails.send({
-      from: fromEmail,
+    const formattedFrom =
+      typeof fromEmail === "string" && fromEmail.includes("<")
+        ? fromEmail
+        : `${fromName} <${fromEmail}>`;
+    const info = await client.transporter.sendMail({
+      from: formattedFrom,
       to: sellerEmail,
       subject,
       html: htmlContent,
       text: textContent,
+      replyTo,
     });
-
-    if (error) {
-      console.error("Failed to send email:", error);
-      throw error;
-    }
-
-    return { success: true, messageId: data?.id };
+    return { success: true, messageId: info?.messageId ?? null };
   } catch (error) {
     console.error("Error sending purchase notification email:", error);
     throw error;

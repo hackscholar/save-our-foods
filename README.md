@@ -133,14 +133,19 @@ The homepage uses this to auto-suggest a marketplace price (with reasoning) when
 
 When a buyer wants to purchase an item from a seller, the system automatically sends an email notification to the seller.
 
-Add the Resend environment variables:
+Configure SMTP credentials (a Gmail app password works great):
 
 ```
-RESEND_API_KEY=<your-resend-api-key>
-RESEND_FROM_EMAIL=<your-verified-email@yourdomain.com>
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=yourapp@gmail.com
+SMTP_PASSWORD=<gmail-app-password>
+# Optional niceties
+SMTP_FROM_EMAIL="SaveMyFoods <yourapp@gmail.com>"
+SMTP_FROM_NAME=SaveMyFoods
 ```
 
-> ⚠️ You need to verify your sender email address in Resend before sending emails. For development, you can use `onboarding@resend.dev` as the default sender.
+> ⚠️ If you use Gmail, create an App Password under Google Account → Security → App passwords. Never commit the password to source control.
 
 - **Endpoint:** `POST /api/items/buy`
 - **Body:**
