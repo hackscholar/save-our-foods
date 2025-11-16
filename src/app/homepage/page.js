@@ -1879,21 +1879,6 @@ export default function Homepage() {
                                     onChange={handleNewItemChange}
                                     required
                                 >
-                                    <option value="">Select a category</option>
-                                    {ITEM_CATEGORIES.map((category) => (
-                                        <option key={category.value} value={category.value}>
-                                            {category.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                            <label className="field">
-                                <span>Category</span>
-                                <select
-                                    name="category"
-                                    value={newItem.category}
-                                    onChange={handleNewItemChange}
-                                >
                                     <option value="">Select category</option>
                                     {ITEM_CATEGORIES.map((category) => (
                                         <option key={category.value} value={category.value}>
