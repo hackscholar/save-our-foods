@@ -984,6 +984,14 @@ export default function Homepage() {
                     </div>
                     <div className="header-right">
                         <div className="notification-center" ref={notificationsMenuRef}>
+                            <div className="notification-indicator" aria-hidden="true">
+                                <span className="notification-indicator__icon">
+                                    {"\u{1F514}"}
+                                </span>
+                                <span className="notification-indicator__count">
+                                    {notifications.length > 99 ? "99+" : notifications.length}
+                                </span>
+                            </div>
                             <button
                                 type="button"
                                 className={`notification-button ${unreadNotifications > 0 ? "notification-button--active" : ""}`}
