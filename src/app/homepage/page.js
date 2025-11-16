@@ -37,6 +37,7 @@ export default function Homepage() {
   const [newItem, setNewItem] = useState(createEmptyForm());
   const [editingItem, setEditingItem] = useState(null);
   const [createState, setCreateState] = useState({ loading: false, error: null });
+  const [deleteState, setDeleteState] = useState({ loading: false, error: null });
   const [uploadState, setUploadState] = useState({ uploading: false, error: null });
   const [enrichState, setEnrichState] = useState({ loading: false, error: null });
   const [sellDialog, setSellDialog] = useState({
@@ -128,6 +129,7 @@ export default function Homepage() {
     setUploadState({ uploading: false, error: null });
     setEnrichState({ loading: false, error: null });
     setCreateState({ loading: false, error: null });
+    setDeleteState({ loading: false, error: null });
     setModalOpen(true);
   }
 
@@ -203,6 +205,28 @@ export default function Homepage() {
       refreshItems();
     } catch (error) {
       setCreateState({ loading: false, error: error.message });
+    }
+  }
+
+  async function handleDeleteItem() {
+    if (!editingItem?.id) return;
+    setDeleteState({ loading: true, error: null });
+    try {
+      const response = await fetch("/api/items", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingItem.id }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Unable to delete item.");
+      }
+      setDeleteState({ loading: false, error: null });
+      setModalOpen(false);
+      setEditingItem(null);
+      refreshItems();
+    } catch (error) {
+      setDeleteState({ loading: false, error: error.message });
     }
   }
   async function handleImageUpload(event) {
@@ -756,6 +780,9 @@ export default function Homepage() {
                             {createState.error && (
                                 <p className="helper-text error">{createState.error}</p>
                             )}
+                            {deleteState.error && (
+                                <p className="helper-text error">{deleteState.error}</p>
+                            )}
                             <div className="modal-actions">
                                 <button
                                     type="button"
@@ -764,17 +791,27 @@ export default function Homepage() {
                                         setModalOpen(false);
                                         setEditingItem(null);
                                     }}
-                                    disabled={createState.loading}
+                                    disabled={createState.loading || deleteState.loading}
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     className="primary-button"
-                                    disabled={createState.loading}
+                                    disabled={createState.loading || deleteState.loading}
                                 >
                                     {createState.loading ? "Saving…" : "Save"}
                                 </button>
+                                {editingItem && (
+                                    <button
+                                        type="button"
+                                        className="danger-button"
+                                        onClick={handleDeleteItem}
+                                        disabled={deleteState.loading || createState.loading}
+                                    >
+                                        {deleteState.loading ? "Deleting…" : "Delete"}
+                                    </button>
+                                )}
                             </div>
                         </form>
                     </div>

@@ -124,6 +124,18 @@ export async function updateItem(itemId, patch = {}) {
   return formatItem(data);
 }
 
+export async function deleteItem(itemId) {
+  if (!itemId) {
+    throw new Error("Item ID is required to delete an item.");
+  }
+  const supabase = getSupabaseServiceClient();
+  const { error } = await supabase.from(ITEMS_TABLE).delete().eq("id", itemId);
+  if (error) {
+    throw error;
+  }
+  return true;
+}
+
 export async function listItemsBySeller(sellerId, type = null) {
   const supabase = getSupabaseServiceClient();
   let query = supabase.from(ITEMS_TABLE).select("*").eq("seller_id", sellerId);

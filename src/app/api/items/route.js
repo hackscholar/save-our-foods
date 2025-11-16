@@ -4,6 +4,7 @@ import {
   validateItemInput,
   listItemsBySeller,
   listItemsByType,
+  deleteItem,
   updateItem,
 } from "@/lib/items";
 
@@ -117,6 +118,34 @@ export async function POST(request) {
     console.error("Failed to create item", error);
     return NextResponse.json(
       { error: "Unable to save item right now. Please try again later." },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(request) {
+  let payload = {};
+  try {
+    payload = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+
+  const itemId = payload?.id ?? payload?.itemId ?? payload?.item_id;
+  if (!itemId) {
+    return NextResponse.json(
+      { error: "id is required to delete an item." },
+      { status: 400 },
+    );
+  }
+
+  try {
+    await deleteItem(itemId);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Failed to delete item", error);
+    return NextResponse.json(
+      { error: "Unable to delete item right now. Please try again later." },
       { status: 500 },
     );
   }
