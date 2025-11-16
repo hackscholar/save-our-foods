@@ -47,6 +47,8 @@ export default function Homepage() {
     item: null,
     priceInput: "",
   });
+  const [cartItems, setCartItems] = useState([]);
+  const [cartState, setCartState] = useState({ loading: false, error: null, success: null });
 
   useEffect(() => {
     const timer = setTimeout(() => setHasEntered(true), 3000);
@@ -364,9 +366,64 @@ export default function Homepage() {
     }
   }
 
+  function addToCart(item) {
+    if (!item || item.sellerId === user?.id) return;
+    setCartItems((prev) => {
+      if (prev.some((entry) => entry.id === item.id)) return prev;
+      return [...prev, { id: item.id, name: item.name, price: item.price, sellerId: item.sellerId }];
+    });
+    setCartState({ loading: false, error: null, success: null });
+  }
+
+  function removeFromCart(id) {
+    setCartItems((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  async function checkoutCart() {
+    if (cartItems.length === 0 || !user?.email) {
+      setCartState({ loading: false, error: "Cart is empty or missing buyer email.", success: null });
+      return;
+    }
+    setCartState({ loading: true, error: null, success: null });
+    try {
+      const response = await fetch("/api/cart/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          buyerId: user.id,
+          buyerEmail: user.email,
+          buyerName: user.name,
+          items: cartItems.map((item) => ({
+            id: item.id,
+            name: item.name,
+            price: item.price ?? 0,
+            quantity: 1,
+          })),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Unable to checkout.");
+      }
+      setCartItems([]);
+      if (data.pdf) {
+        const link = document.createElement("a");
+        link.href = `data:application/pdf;base64,${data.pdf}`;
+        link.download = data.fileName ?? `savemyfoods-receipt-${Date.now()}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      setCartState({ loading: false, error: null, success: "Receipt downloaded." });
+    } catch (error) {
+      setCartState({ loading: false, error: error.message, success: null });
+    }
+  }
+
   const inventoryItems = items.filter((item) => item.type !== "marketplace");
   const marketplaceItems = marketItems;
   const canManageItem = (item) => item?.sellerId === user?.id;
+  const isInCart = (id) => cartItems.some((item) => item.id === id);
 
   return (
         <main className="homepage-root">
@@ -446,30 +503,90 @@ export default function Homepage() {
                         <aside className="sidebar">
                             <h3 className="sidebar-title">My selling list</h3>
                             <p className="sidebar-helper">
-                                Add any food or groceries you want to sell or share.
+                                Items you have listed on the marketplace.
                             </p>
 
-                            <div className="selling-form">
-                                <input
-                                    className="selling-input"
-                                    type="text"
-                                    placeholder="e.g. 2L milk (expires Friday)"
-                                />
-                                <input
-                                    className="selling-input"
-                                    type="text"
-                                    placeholder="Price or ‘free’"
-                                />
-                                <button className="selling-button">
-                                    Add to list
-                                </button>
-                            </div>
+                            {marketItems.filter((item) => item.sellerId === user?.id).length === 0 &&
+                            !marketState.loading ? (
+                                <div className="selling-list">
+                                    <p className="selling-empty">
+                                        You have not listed any items yet.
+                                    </p>
+                                </div>
+                            ) : (
+                                <ul className="selling-list">
+                                    {marketItems
+                                        .filter((item) => item.sellerId === user?.id)
+                                        .map((item) => (
+                                            <li key={`sell-${item.id}`} className="selling-item">
+                                                <div className="selling-item__thumb">
+                                                    {item.imagePath ? (
+                                                        <Image
+                                                            src={item.imagePath}
+                                                            alt={item.name}
+                                                            width={48}
+                                                            height={48}
+                                                        />
+                                                    ) : (
+                                                        <span>No image</span>
+                                                    )}
+                                                </div>
+                                                <div className="selling-item__info">
+                                                    <strong>{item.name}</strong>
+                                                    <span>
+                                                        {item.price !== null && item.price !== undefined
+                                                            ? ` • $${Number(item.price).toFixed(2)}`
+                                                            : ""}
+                                                    </span>
+                                                    <div className="selling-meta">
+                                                        Qty: {item.quantity ?? 0}
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        ))}
+                                </ul>
+                            )}
 
-                            <div className="selling-list">
-                                <p className="selling-empty">
-                                    Your list is empty for now.
-                                </p>
-                                {/* Later you can map over items here */}
+                            <div className="cart-card">
+                                <h4>Shopping cart</h4>
+                                {cartItems.length === 0 ? (
+                                    <p className="selling-empty">No items yet.</p>
+                                ) : (
+                                    <ul className="cart-list">
+                                        {cartItems.map((item) => (
+                                            <li key={`cart-${item.id}`}>
+                                                <span>{item.name}</span>
+                                                <div>
+                                                    <span>
+                                                        {item.price !== null && item.price !== undefined
+                                                            ? `$${Number(item.price).toFixed(2)}`
+                                                            : "$0.00"}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeFromCart(item.id)}
+                                                    >
+                                                        remove
+                                                    </button>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                                {cartState.error && (
+                                    <p className="helper-text error">{cartState.error}</p>
+                                )}
+                                {cartState.success && (
+                                    <p className="helper-text success">{cartState.success}</p>
+                                )}
+                                <button
+                                    type="button"
+                                    className="primary-button wide"
+                                    onClick={checkoutCart}
+                                    disabled={cartState.loading || cartItems.length === 0}
+                                >
+                                    {cartState.loading ? "Sending…" : "Checkout"}
+                                </button>
                             </div>
                         </aside>
 
@@ -579,6 +696,16 @@ export default function Homepage() {
                                                                 <dd>{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : "—"}</dd>
                                                             </div>
                                                         </dl>
+                                                        {item.sellerId !== user?.id && (
+                                                            <button
+                                                                type="button"
+                                                                className={`cart-add-button ${isInCart(item.id) ? "cart-add-button--disabled" : ""}`}
+                                                                onClick={() => addToCart(item)}
+                                                                disabled={isInCart(item.id)}
+                                                            >
+                                                                {isInCart(item.id) ? "In cart" : "Add to cart"}
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </article>
                                             ))}
@@ -664,6 +791,16 @@ export default function Homepage() {
                                                                 <dd>{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : "—"}</dd>
                                                             </div>
                                                         </dl>
+                                                        {item.sellerId !== user?.id && (
+                                                            <button
+                                                                type="button"
+                                                                className="cart-add-button"
+                                                                onClick={() => addToCart(item)}
+                                                                disabled={isInCart(item.id)}
+                                                            >
+                                                                {isInCart(item.id) ? "In cart" : "Add to cart"}
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </article>
                                             ))}

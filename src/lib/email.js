@@ -115,3 +115,85 @@ Save My Foods Team
   }
 }
 
+export async function sendCartInvoiceEmail({ buyerEmail, buyerName, items }) {
+  if (!buyerEmail) {
+    throw new Error("Buyer email is required to send invoice.");
+  }
+
+  const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+  const total = items.reduce(
+    (sum, item) => sum + Number(item.price ?? 0) * Number(item.quantity ?? 1),
+    0,
+  );
+
+  const rowsHtml = items
+    .map(
+      (item) => `
+        <tr>
+          <td style="padding: 8px; border: 1px solid #e5e7eb;">${item.name}</td>
+          <td style="padding: 8px; border: 1px solid #e5e7eb; text-align: center;">${
+            item.quantity ?? 1
+          }</td>
+          <td style="padding: 8px; border: 1px solid #e5e7eb; text-align: right;">$${
+            Number(item.price ?? 0).toFixed(2)
+          }</td>
+        </tr>
+      `,
+    )
+    .join("");
+
+  const htmlContent = `
+    <h1 style="font-family: Arial, sans-serif;">Your SaveMyFoods Purchase</h1>
+    <p>Hello ${buyerName || "there"},</p>
+    <p>Here is a summary of your cart:</p>
+    <table style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif;">
+      <thead>
+        <tr>
+          <th style="padding: 8px; border: 1px solid #e5e7eb; text-align: left;">Item</th>
+          <th style="padding: 8px; border: 1px solid #e5e7eb;">Qty</th>
+          <th style="padding: 8px; border: 1px solid #e5e7eb; text-align: right;">Price</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2" style="padding: 8px; border: 1px solid #e5e7eb; text-align: right;"><strong>Total</strong></td>
+          <td style="padding: 8px; border: 1px solid #e5e7eb; text-align: right;"><strong>$${total.toFixed(
+            2,
+          )}</strong></td>
+        </tr>
+      </tfoot>
+    </table>
+    <p>Thank you for supporting your community!</p>
+  `;
+
+  const textContent = [
+    "Your SaveMyFoods Purchase",
+    "",
+    ...items.map(
+      (item) =>
+        `${item.name} - Qty: ${item.quantity ?? 1} - $${Number(item.price ?? 0).toFixed(2)}`,
+    ),
+    "",
+    `Total: $${total.toFixed(2)}`,
+  ].join("\n");
+
+  const resendClient = ensureResendClient();
+  if (!resendClient) {
+    throw new Error("RESEND_API_KEY is not configured. Please set it in your environment variables.");
+  }
+
+  const { error } = await resendClient.emails.send({
+    from: fromEmail,
+    to: buyerEmail,
+    subject: "Your SaveMyFoods cart summary",
+    html: htmlContent,
+    text: textContent,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return { success: true };
+}

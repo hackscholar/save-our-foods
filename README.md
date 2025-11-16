@@ -129,6 +129,14 @@ When an `itemId` is supplied, the backend updates that row with any non-null AI 
 
 The homepage uses this to auto-suggest a marketplace price (with reasoning) when you click “Sell”.
 
+### Cart checkout (PDF invoice)
+
+- **Endpoint:** `POST /api/cart/checkout`
+- **Body:** `{ "buyerId": "<uuid>", "items": [{ "name": "Tomatoes", "price": 3.5, "quantity": 2 }] }`
+- **Response:** `{ "success": true, "pdf": "<base64>", "fileName": "savemyfoods-receipt.pdf" }`
+
+The frontend converts the base64 PDF into a downloadable receipt so buyers can save/print their purchase summary.
+
 ### Purchase/Buy Items
 
 When a buyer wants to purchase an item from a seller, the system automatically sends an email notification to the seller.

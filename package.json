@@ -12,7 +12,9 @@
     "@google/generative-ai": "^0.3.1",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.81.1",
+    "@swc/helpers": "^0.5.17",
     "next": "16.0.3",
+    "pdf-lib": "^1.17.1",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "resend": "^6.4.2"
